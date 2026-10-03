@@ -1,0 +1,6 @@
+{
+  "name": "Champions Club",
+  "description": "Unified Sports Club Management ERP & Member Platform for court booking, shop, cafeteria POS, CRM, and club operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
