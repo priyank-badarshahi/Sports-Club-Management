@@ -9,7 +9,18 @@ export type Role =
 
 export type MembershipTier = 'gold' | 'silver' | 'junior' | 'walk_in' | 'none';
 
-export type SportType = 'tennis' | 'padel' | 'badminton' | 'cricket';
+export type SportType = 
+  | 'tennis' 
+  | 'padel' 
+  | 'badminton' 
+  | 'cricket' 
+  | 'box_cricket' 
+  | 'table_tennis' 
+  | 'volleyball' 
+  | 'kho_kho' 
+  | 'hockey' 
+  | 'football' 
+  | 'kabaddi';
 
 export type CourtStatus = 'available' | 'booked' | 'social_play' | 'maintenance';
 
@@ -111,6 +122,7 @@ export interface Court {
     gold: number;
   };
   description: string;
+  facilityFeature?: string;
   maintenanceNote?: string;
 }
 

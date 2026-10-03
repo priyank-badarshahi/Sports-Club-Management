@@ -107,10 +107,10 @@ export const CourtsPage: React.FC = () => {
           Championship Venues
         </span>
         <h1 className="font-heading font-extrabold text-4xl sm:text-5xl text-white">
-          Our Championship Courts & Nets
+          Our Championship Courts & Facilities
         </h1>
         <p className="text-sm sm:text-base text-slate-300">
-          Every court is strictly maintained to world-tour specs with dedicated Musco glare-free floodlights, European clay maintenance, and precision sprung floors.
+          Every facility is professionally maintained with synthetic turfs, Olympic mats, tournament lighting, and state-of-the-art sports infrastructure for recreational and competitive play.
         </p>
       </div>
 
@@ -119,11 +119,15 @@ export const CourtsPage: React.FC = () => {
         {/* Sport filters */}
         <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
           {[
-            { id: 'all', label: 'All Courts' },
-            { id: 'tennis', label: 'Tennis (2)' },
-            { id: 'padel', label: 'Padel (2)' },
-            { id: 'badminton', label: 'Badminton (2)' },
-            { id: 'cricket', label: 'Cricket Nets (2)' },
+            { id: 'all', label: 'All Facilities' },
+            { id: 'box_cricket', label: 'Box Cricket' },
+            { id: 'badminton', label: 'Badminton' },
+            { id: 'table_tennis', label: 'Table Tennis' },
+            { id: 'volleyball', label: 'Volleyball' },
+            { id: 'kho_kho', label: 'Kho Kho' },
+            { id: 'hockey', label: 'Hockey' },
+            { id: 'football', label: 'Football' },
+            { id: 'kabaddi', label: 'Kabaddi' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -158,6 +162,7 @@ export const CourtsPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {filteredCourts.map((court) => {
           const badge = getCourtStatusBadge(court.status);
+          const sportDisplayName = court.sport.replace('_', ' ').toUpperCase();
           return (
             <div
               key={court.id}
@@ -176,7 +181,7 @@ export const CourtsPage: React.FC = () => {
                   {/* Top badges */}
                   <div className="absolute top-4 left-4 flex items-center gap-2">
                     <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-950/85 text-lime-400 border border-lime-400/30 backdrop-blur-md">
-                      Court {court.courtNumber} • {court.sport.toUpperCase()}
+                      COURT {court.courtNumber} • {sportDisplayName}
                     </span>
                     <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-900/80 text-slate-300 border border-slate-700 backdrop-blur-md flex items-center gap-1">
                       {court.isIndoor ? 'Indoor' : 'Outdoor'}
@@ -253,7 +258,7 @@ export const CourtsPage: React.FC = () => {
               <div className="p-6 pt-0 border-t border-slate-800/80 mt-4 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs text-slate-400">
                   <Zap className="w-3.5 h-3.5 text-lime-400" />
-                  <span>Musco 750 Lux LED</span>
+                  <span>{court.facilityFeature || (court.hasFloodlights ? 'LED Floodlights' : 'Indoor LED Lighting')}</span>
                 </div>
 
                 <button

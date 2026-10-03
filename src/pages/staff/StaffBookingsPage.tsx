@@ -72,7 +72,7 @@ export const StaffBookingsPage: React.FC = () => {
   // Date state (defaults to today in 2026 demo context or current day)
   const [selectedDate, setSelectedDate] = useState('2026-10-03');
   const [sportFilter, setSportFilter] = useState<SportType | 'all'>('all');
-  const [selectedCourtForWeek, setSelectedCourtForWeek] = useState<string>(courts[0]?.id || 'court_tennis_1');
+  const [selectedCourtForWeek, setSelectedCourtForWeek] = useState<string>(courts[0]?.id || 'court-1');
 
   // Modals & Drawers
   const [quickBookingModal, setQuickBookingModal] = useState(false);
@@ -123,7 +123,7 @@ export const StaffBookingsPage: React.FC = () => {
   });
 
   const handleSimulateConcurrencyRace = () => {
-    const targetCourt = courts[0] || { id: 'court_tennis_1', name: 'Court 1 - Red Clay', sport: 'tennis', hourlyRate: { walk_in: 1200 } };
+    const targetCourt = courts[0] || { id: 'court-1', name: 'Champions Box Cricket Arena', sport: 'box_cricket', hourlyRate: { walk_in: 1200 } };
     const raceDate = selectedDate;
     const raceTime = '18:00';
 

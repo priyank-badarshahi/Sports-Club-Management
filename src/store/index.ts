@@ -369,7 +369,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentUser: (saved?.currentUser as UserProfile) || DEMO_USERS.visitor,
 
   members: saved?.members || INITIAL_MEMBERS,
-  courts: saved?.courts || INITIAL_COURTS,
+  courts: (saved?.courts && saved.courts.some((c: any) => c.id === 'court-1')) ? saved.courts : INITIAL_COURTS,
   plans: saved?.plans || INITIAL_PLANS,
   bookings: saved?.bookings || INITIAL_BOOKINGS,
   socialSessions: saved?.socialSessions || INITIAL_SOCIAL_SESSIONS,
