@@ -21,7 +21,7 @@ interface MemberRegistrationModalProps {
 }
 
 export const MemberRegistrationModal: React.FC = () => {
-  const { plans, registerMember, openMember360 } = useAppStore();
+  const { plans, registerMember, openMember360, syncMembers } = useAppStore();
 
   const [form, setForm] = useState({
     fullName: '',
@@ -131,6 +131,29 @@ export const MemberRegistrationModal: React.FC = () => {
     );
 
     setCreatedResult({ member, invoiceId: invoice.invoiceNumber });
+
+    // Save directly to Supabase backend database
+    fetch('/api/members', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        tier: form.planTier,
+        dateOfBirth: form.dateOfBirth,
+        startDate: form.startDate,
+        expiryDate: expiryDateStr,
+        emergencyContact: {
+          name: form.emergencyName,
+          phone: form.emergencyPhone,
+          relation: form.emergencyRelation,
+        },
+        avatar: form.avatar,
+      }),
+    })
+      .then(() => syncMembers())
+      .catch((e) => console.warn('Member backend sync deferred:', e));
   };
 
   const sampleAvatars = [

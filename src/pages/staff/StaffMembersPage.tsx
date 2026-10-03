@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppStore } from '../../store';
 import { Member, MembershipTier, MemberStatus, SportType } from '../../types';
 import { MemberRegistrationModal } from '../../components/MemberRegistrationModal';
@@ -27,7 +27,11 @@ import {
 import { formatINR, getTierBadgeClass, getTierName, formatDate } from '../../lib/formatters';
 
 export const StaffMembersPage: React.FC = () => {
-  const { members, bookings, openMember360, sendBulkExpiryReminders, addToast, settings } = useAppStore();
+  const { members, bookings, openMember360, sendBulkExpiryReminders, addToast, settings, syncMembers } = useAppStore();
+
+  useEffect(() => {
+    syncMembers();
+  }, [syncMembers]);
 
   const [activeDirectoryTab, setActiveDirectoryTab] = useState<'members' | 'guests'>('members');
   const [search, setSearch] = useState('');

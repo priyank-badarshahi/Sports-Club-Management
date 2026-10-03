@@ -332,6 +332,8 @@ interface AppState {
   
   logAudit: (action: string, entity: string, details: string) => void;
   setCurrentUser: (user: UserProfile) => void;
+  loginUser: (user: UserProfile) => void;
+  syncMembers: () => Promise<void>;
   resetDemoData: () => void;
   updateSettings: (newSettings: Partial<ClubSettings>) => void;
   pullFromSupabase: () => Promise<boolean>;
@@ -395,11 +397,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeMember360: () => set({ selectedMemberId360: null }),
 
   setRole: (role: Role) => {
-    const user = DEMO_USERS[role];
+    const prev = get().currentUser;
+    // If the currently authenticated user matches this role, preserve their identity
+    const user = (prev && prev.role === role && prev.email && !prev.email.endsWith('@championsclub.demo'))
+      ? prev
+      : DEMO_USERS[role];
     set({ currentRole: role, currentUser: user });
     get().addToast({
       type: 'info',
-      title: `Switched Role to ${user.name}`,
+      title: `Active Persona: ${user.name}`,
       message: `Active persona: ${role.replace('_', ' ').toUpperCase()}`,
     });
     get().logAudit('ROLE_SWITCH', 'User Persona', `Switched active role to ${role}`);
@@ -466,7 +472,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       const settings = await supabaseService.fetchRecords<any>('settings');
 
       const updates: any = {};
-      if (members && members.length > 0) updates.members = members;
+      if (members && members.length > 0) {
+        const currentMembers = get().members;
+        const dbIds = new Set(members.map((m: any) => m.id));
+        const dbEmails = new Set(members.map((m: any) => m.email?.toLowerCase()).filter(Boolean));
+        const remaining = currentMembers.filter(
+          (m) => !dbIds.has(m.id) && (!m.email || !dbEmails.has(m.email.toLowerCase()))
+        );
+        updates.members = [...members, ...remaining];
+      }
       if (bookings && bookings.length > 0) updates.bookings = bookings;
       if (products && products.length > 0) updates.products = products;
       if (orders && orders.length > 0) updates.orders = orders;
@@ -4260,6 +4274,41 @@ export const useAppStore = create<AppState>((set, get) => ({
     persist(get());
   },
 
+  loginUser: (user) => {
+    set({ currentRole: user.role, currentUser: user });
+    get().addToast({
+      type: 'success',
+      title: `Welcome, ${user.name}!`,
+      message: `Signed in as ${user.role.replace('_', ' ').toUpperCase()}`,
+    });
+    get().logAudit('USER_LOGIN', 'Authentication', `User ${user.email} (${user.name}) logged in as ${user.role}`);
+    persist(get());
+  },
+
+  syncMembers: async () => {
+    try {
+      const res = await fetch('/api/members');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.members) && data.members.length > 0) {
+          const currentMembers = get().members;
+          const dbIds = new Set(data.members.map((m: any) => m.id));
+          const dbEmails = new Set(data.members.map((m: any) => m.email?.toLowerCase()).filter(Boolean));
+          
+          const remaining = currentMembers.filter(
+            (m) => !dbIds.has(m.id) && (!m.email || !dbEmails.has(m.email.toLowerCase()))
+          );
+          
+          set({ members: [...data.members, ...remaining] });
+          persist(get());
+          console.log(`✅ [Zustand] Synced ${data.members.length} members from Supabase database`);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not sync members from backend:', err);
+    }
+  },
+
   updateSettings: (newSettings) => {
     set((state) => ({
       settings: { ...state.settings, ...newSettings },
@@ -4359,4 +4408,9 @@ if (typeof window !== 'undefined') {
       }
     }
   });
+
+  // Automatically sync members from Supabase database on client startup
+  setTimeout(() => {
+    useAppStore.getState().syncMembers();
+  }, 250);
 }

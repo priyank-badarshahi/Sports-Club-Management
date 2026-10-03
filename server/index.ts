@@ -351,9 +351,10 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
       }
 
       // If standard Supabase login failed, check staff demo fallback accounts for admin evaluation
-      const DEMO_STAFF_MAP: Record<string, { role: string; name: string }> = {
-        'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania' },
-        'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania' },
+      const DEMO_STAFF_MAP: Record<string, { role: string; name: string; memberId?: string; membershipPlan?: string }> = {
+        'jack@gmail.com': { role: 'owner', name: 'Jack Jackson', memberId: 'ADM001', membershipPlan: 'Gold' },
+        'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', memberId: 'ADM001', membershipPlan: 'Gold' },
+        'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', memberId: 'ADM001', membershipPlan: 'Gold' },
         'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma' },
         'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma' },
         'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra' },
@@ -375,6 +376,9 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
             name: staff.name,
             email: cleanIdentifier,
             role: staff.role,
+            memberId: staff.memberId || 'M001',
+            membershipPlan: staff.membershipPlan || 'Gold',
+            phone: '+91 98765 00001',
           },
         });
         return;
@@ -401,6 +405,42 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
   }
 });
 
+// Helper to map DB row to frontend Member interface
+function formatMemberForClient(m: any) {
+  const tierRaw = String(m.plan || 'Silver').toLowerCase();
+  const tier = tierRaw === 'gold' ? 'gold' : tierRaw === 'junior' ? 'junior' : 'silver';
+  let emergencyContact = { name: 'Emergency Contact', phone: m.phone || '', relation: 'Family' };
+  if (typeof m.emergency_contact === 'string') {
+    try {
+      emergencyContact = JSON.parse(m.emergency_contact);
+    } catch (e) {}
+  } else if (typeof m.emergency_contact === 'object' && m.emergency_contact !== null) {
+    emergencyContact = m.emergency_contact;
+  }
+
+  return {
+    id: m.member_id || m.id,
+    dbId: m.id,
+    memberNumber: `CC-2026-${m.member_id || 'M001'}`,
+    fullName: m.name || 'Club Member',
+    dateOfBirth: m.date_of_birth || '2000-01-01',
+    email: m.email || '',
+    phone: m.phone || '',
+    avatar: m.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+    tier,
+    status: m.status || 'active',
+    joinDate: m.start_date || m.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+    expiryDate: m.expiry_date || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    walletBalance: typeof m.total_spent === 'number' ? Math.round(m.total_spent / 10) : 2500,
+    activeTabBalance: 0,
+    emergencyContact,
+    preferredSports: ['tennis'],
+    attendanceLog: [],
+    reminderLog: [],
+    notes: `Database record for member ID ${m.member_id}`,
+  };
+}
+
 // Fetch all registered members from Supabase
 app.get('/api/members', async (req: Request, res: Response) => {
   try {
@@ -411,12 +451,103 @@ app.get('/api/members', async (req: Request, res: Response) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      res.json({ success: true, members: data });
+      const formattedMembers = (data || []).map(formatMemberForClient);
+      res.json({ success: true, members: formattedMembers, rawMembers: data });
       return;
     }
 
     res.json({ success: true, members: [], notice: 'Supabase not configured' });
   } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Create/Insert a member directly into Supabase members table (used by admin registration modal)
+app.post('/api/members', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      fullName,
+      name,
+      email,
+      phone,
+      tier,
+      plan,
+      dateOfBirth,
+      startDate,
+      expiryDate,
+      emergencyContact,
+      avatar,
+    } = req.body;
+
+    const resolvedName = (fullName || name || '').trim();
+    const resolvedEmail = (email || '').trim().toLowerCase();
+    const resolvedPhone = (phone || '').trim();
+    const rawPlan = String(plan || tier || 'Silver').toLowerCase();
+    const resolvedPlan = rawPlan === 'gold' ? 'Gold' : rawPlan === 'junior' ? 'Junior' : 'Silver';
+
+    if (!resolvedName || !resolvedEmail) {
+      res.status(400).json({ success: false, error: 'Name and email are required.' });
+      return;
+    }
+
+    if (isSupabaseConfigured) {
+      // Find max member_id
+      const { data: existingMembers } = await supabase.from('members').select('member_id');
+      let maxNum = 0;
+      for (const m of existingMembers || []) {
+        if (m.member_id) {
+          const match = String(m.member_id).match(/M(\d+)/i);
+          if (match) {
+            const val = parseInt(match[1], 10);
+            if (val > maxNum) maxNum = val;
+          }
+        }
+      }
+      const memberId = `M${String(maxNum + 1).padStart(3, '0')}`;
+      const todayStr = startDate || new Date().toISOString().split('T')[0];
+      const expiryStr = expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      const memberPayload = {
+        member_id: memberId,
+        name: resolvedName,
+        email: resolvedEmail,
+        phone: resolvedPhone,
+        avatar_url: avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+        date_of_birth: dateOfBirth || '2000-01-01',
+        plan: resolvedPlan,
+        start_date: todayStr,
+        expiry_date: expiryStr,
+        status: 'active',
+        discount_rate: resolvedPlan === 'Gold' ? 0.20 : resolvedPlan === 'Junior' ? 0.15 : 0.10,
+        total_bookings: 0,
+        total_spent: resolvedPlan === 'Gold' ? 45000 : 28000,
+        emergency_contact: emergencyContact ? (typeof emergencyContact === 'string' ? emergencyContact : JSON.stringify(emergencyContact)) : null,
+      };
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('members')
+        .insert(memberPayload)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ Supabase members insert error:', insertError);
+        res.status(500).json({ success: false, error: insertError.message });
+        return;
+      }
+
+      console.log(`✅ [Supabase] New member created in database: ${resolvedEmail} (${memberId})`);
+      res.status(201).json({
+        success: true,
+        member: formatMemberForClient(inserted),
+        rawMember: inserted,
+      });
+      return;
+    }
+
+    res.status(500).json({ success: false, error: 'Database not configured' });
+  } catch (err: any) {
+    console.error('❌ Error creating member:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

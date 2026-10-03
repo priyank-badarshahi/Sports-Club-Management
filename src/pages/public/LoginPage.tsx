@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { setRole, setCurrentUser, addToast, registerMember } = useAppStore();
+  const { loginUser, addToast, registerMember, syncMembers } = useAppStore();
   const navigate = useNavigate();
 
   // Mode toggle
@@ -137,21 +137,17 @@ export const LoginPage: React.FC = () => {
         }));
       }
 
-      setCurrentUser({
+      loginUser({
         name: result.user.name,
         email: result.user.email,
         role: matchedRole,
-        avatar: existingMember?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+        avatar: existingMember?.avatar || (matchedRole === 'owner' ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80' : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80'),
         tier: tier,
         memberId: memberId,
       });
-      setRole(matchedRole);
 
-      addToast({
-        type: 'success',
-        title: 'Login Successful',
-        message: `Welcome back, ${result.user.name}! Authenticated against Supabase database.`
-      });
+      // Refresh members from database
+      syncMembers();
 
       // Route to respective route based on role
       if (matchedRole === 'member') {
@@ -278,7 +274,7 @@ export const LoginPage: React.FC = () => {
       // Register in local Zustand store
       registerMember(newMemberData, 'card', tier === 'gold' ? 5000 : 2500, 'annual');
 
-      setCurrentUser({
+      loginUser({
         name: fullName.trim(),
         email: email.trim(),
         role: 'member',
@@ -286,13 +282,9 @@ export const LoginPage: React.FC = () => {
         tier: tier,
         memberId: assignedMemberId
       });
-      setRole('member');
 
-      addToast({
-        type: 'success',
-        title: 'Account Stored in Database!',
-        message: `Welcome to Champions Club, ${fullName}! Your Member ID is ${assignedMemberId}.`
-      });
+      // Sync members from database
+      syncMembers();
 
       navigate('/member/home');
     } catch (err: any) {

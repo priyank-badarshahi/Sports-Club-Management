@@ -1,9 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { Member, Booking, Product, Order, Tab, Invoice, Payment, AuditLog } from '../types';
 
-const SUPABASE_PROJECT_ID = 'sjmmxfprhhmxmdlcogzz';
-const SUPABASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co`;
-const SUPABASE_ANON_KEY = 'sb_publishable_ypX07-xcXDqYEVZyQvMy8g_0qmq-1V-';
+const SUPABASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || 'https://gddhfywnqrltmnlmtyak.supabase.co';
+const SUPABASE_ANON_KEY = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || 'sb_publishable_UFblFtW6JURAXiqHdNUIOA_9a1Xswm6';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -14,10 +13,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const TABLE_COLUMNS: Record<string, string[]> = {
   members: [
-    'id', 'fullName', 'phone', 'email', 'avatar', 'tier', 'status', 'expiryDate', 
-    'walletBalance', 'activeTabBalance', 'emergencyContact', 'notes', 'joinDate', 
-    'memberNumber', 'attendanceLog', 'reminderLog', 'dateOfBirth', 'gender', 
-    'preferredSports', 'guardian', 'frozenDate', 'frozenDaysCount', 'guestPassesUsed'
+    'id', 'member_id', 'user_id', 'name', 'email', 'phone', 'avatar_url', 
+    'date_of_birth', 'plan', 'start_date', 'expiry_date', 'status', 
+    'discount_rate', 'total_bookings', 'total_spent', 'emergency_contact'
   ],
   bookings: [
     'id', 'courtId', 'memberId', 'guestName', 'guestPhone', 'guestEmail', 'tier', 
@@ -138,8 +136,30 @@ export const supabaseService = {
     try {
       // Map custom front-end shapes to DB shapes, strip extra frontend-only properties
       const cleanRecords = records.map(r => {
-        const item = { ...r };
+        let item = { ...r };
         
+        // Special mapping for members table to match Supabase database schema
+        if (tableName === 'members') {
+          const tierRaw = String(r.tier || 'Silver');
+          const plan = tierRaw.charAt(0).toUpperCase() + tierRaw.slice(1).toLowerCase();
+          item = {
+            member_id: r.id?.startsWith('M') || r.id?.startsWith('ADM') ? r.id : (r.memberNumber?.split('-').pop() || 'M001'),
+            name: r.fullName || r.name || 'Member',
+            email: r.email || '',
+            phone: r.phone || '',
+            avatar_url: r.avatar || null,
+            date_of_birth: r.dateOfBirth || '2000-01-01',
+            plan: plan,
+            start_date: r.joinDate || new Date().toISOString().split('T')[0],
+            expiry_date: r.expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            status: r.status || 'active',
+            discount_rate: r.tier === 'gold' ? 0.20 : r.tier === 'junior' ? 0.15 : 0.10,
+            total_spent: r.walletBalance ? r.walletBalance * 10 : 25000,
+            emergency_contact: r.emergencyContact ? (typeof r.emergencyContact === 'string' ? r.emergencyContact : JSON.stringify(r.emergencyContact)) : null,
+          };
+          if (r.dbId) item.id = r.dbId;
+        }
+
         // Remove columns not in whitelist for this table to prevent 42703 (column does not exist) errors
         const allowedColumns = TABLE_COLUMNS[tableName];
         if (allowedColumns) {
@@ -159,7 +179,7 @@ export const supabaseService = {
         return item;
       });
 
-      const { error } = await supabase.from(tableName).upsert(cleanRecords);
+      const { error } = await supabase.from(tableName).upsert(cleanRecords, { onConflict: tableName === 'members' ? 'member_id' : 'id' });
       if (error) {
         console.warn(`Supabase upsert failed on table "${tableName}":`, error.message);
         return false;
@@ -176,6 +196,21 @@ export const supabaseService = {
    */
   async fetchRecords<T>(tableName: string): Promise<T[] | null> {
     try {
+      // For members, first try our Express backend endpoint which provides mapped data
+      if (tableName === 'members') {
+        try {
+          const res = await fetch('/api/members');
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && Array.isArray(json.members) && json.members.length > 0) {
+              return json.members as T[];
+            }
+          }
+        } catch {
+          // If backend fetch fails, proceed with Supabase client query
+        }
+      }
+
       const { data, error } = await supabase.from(tableName).select('*');
       if (error) {
         console.warn(`Supabase fetch failed on table "${tableName}":`, error.message);
@@ -184,6 +219,40 @@ export const supabaseService = {
       
       // Parse JSON strings back to objects
       const parsedData = (data || []).map((row: any) => {
+        // Special mapping if fetching directly from Supabase members table
+        if (tableName === 'members' && row.name && !row.fullName) {
+          const tierRaw = String(row.plan || 'Silver').toLowerCase();
+          const tier = tierRaw === 'gold' ? 'gold' : tierRaw === 'junior' ? 'junior' : 'silver';
+          let emergencyContact = { name: 'Emergency Contact', phone: row.phone || '', relation: 'Family' };
+          if (typeof row.emergency_contact === 'string') {
+            try { emergencyContact = JSON.parse(row.emergency_contact); } catch (e) {}
+          } else if (typeof row.emergency_contact === 'object' && row.emergency_contact !== null) {
+            emergencyContact = row.emergency_contact;
+          }
+
+          return {
+            id: row.member_id || row.id,
+            dbId: row.id,
+            memberNumber: `CC-2026-${row.member_id || 'M001'}`,
+            fullName: row.name || 'Member',
+            dateOfBirth: row.date_of_birth || '2000-01-01',
+            email: row.email || '',
+            phone: row.phone || '',
+            avatar: row.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+            tier,
+            status: row.status || 'active',
+            joinDate: row.start_date || row.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+            expiryDate: row.expiry_date || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            walletBalance: typeof row.total_spent === 'number' ? Math.round(row.total_spent / 10) : 2500,
+            activeTabBalance: 0,
+            emergencyContact,
+            preferredSports: ['tennis'],
+            attendanceLog: [],
+            reminderLog: [],
+            notes: `Database record for member ID ${row.member_id}`,
+          };
+        }
+
         const item = { ...row };
         for (const key of Object.keys(item)) {
           if (typeof item[key] === 'string') {
