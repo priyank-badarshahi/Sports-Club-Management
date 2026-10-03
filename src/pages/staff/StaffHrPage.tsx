@@ -60,6 +60,7 @@ export const StaffHrPage: React.FC = () => {
     markPayrollPaid,
     createCoachCourtBlock,
     syncEmployees,
+    currentUser,
     addToast
   } = useAppStore();
 
@@ -833,7 +834,15 @@ export const StaffHrPage: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setShowApplyLeaveModal(true)}
+              onClick={() => {
+                const matchedEmp = employees.find(
+                  (e) => e.email?.toLowerCase() === currentUser.email?.toLowerCase()
+                );
+                if (matchedEmp) {
+                  setLeaveForm((prev) => ({ ...prev, employeeId: matchedEmp.id }));
+                }
+                setShowApplyLeaveModal(true);
+              }}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-xs font-bold transition shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
