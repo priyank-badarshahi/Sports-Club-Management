@@ -226,7 +226,7 @@ interface AppState {
   checkInBooking: (id: string) => void;
   updateBookingStatus: (id: string, status: BookingStatus) => void;
   createCourtBlock: (courtId: string, date: string, startTime: string, endTime: string, type: 'maintenance' | 'coaching' | 'tournament', notes: string) => { success: boolean; error?: string };
-  addRecurringBookings: (params: { courtId: string; startDate: string; weeksCount: number; startTime: string; memberId?: string; guestName: string; guestPhone: string; tier: MembershipTier; sport: SportType; paymentMethod?: 'wallet' | 'upi' | 'card' | 'cash' | 'plan_included' | 'pay_at_desk' }) => { success: boolean; createdCount: number; error?: string };
+  addRecurringBookings: (params: { courtId: string; startDate: string; weeksCount: number; startTime: string; memberId?: string; guestName: string; guestPhone: string; guestEmail?: string; tier: MembershipTier; sport: SportType; paymentMethod?: 'wallet' | 'upi' | 'card' | 'cash' | 'plan_included' | 'pay_at_desk' }) => { success: boolean; createdCount: number; error?: string };
   joinSocialSession: (sessionId: string, memberId: string, paymentMethod?: string) => { success: boolean; waitlisted?: boolean; message: string };
   leaveSocialSession: (sessionId: string, memberId: string) => { success: boolean; message: string };
   
@@ -994,7 +994,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addRecurringBookings: (params) => {
     const { bookings, socialSessions, members, settings, courts, plans } = get();
-    const { courtId, startDate, weeksCount, startTime, memberId, guestName, guestPhone, tier, sport, paymentMethod } = params;
+    const { courtId, startDate, weeksCount, startTime, memberId, guestName, guestPhone, guestEmail, tier, sport, paymentMethod } = params;
     const endTime = calculateEndTime(startTime, 60);
 
     const validation = validateRecurringBookings({
@@ -1045,6 +1045,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         memberId,
         guestName,
         guestPhone,
+        guestEmail,
         tier,
         date: d,
         startTime,

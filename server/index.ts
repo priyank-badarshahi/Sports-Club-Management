@@ -161,7 +161,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
           role: 'member',
           phone: cleanPhone,
           member_id: memberId,
-          membership_plan: (resolvedPlan === 'Walk-in' || resolvedPlan === 'None') ? null : resolvedPlan,
+          membership_plan: resolvedPlan === 'Walk-in' ? null : resolvedPlan,
         });
 
       if (profileError) {
@@ -585,14 +585,14 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
     }
 
     if (isSupabaseConfigured) {
-      // Find target user ID
+      // Find target user ID and profile info
       const { data: prof } = await supabase
         .from('profiles')
-        .select('id')
+        .select('*')
         .ilike('email', resolvedEmail)
         .maybeSingle();
 
-      let targetUserId = prof?.id;
+      let targetUserId = (prof as any)?.id;
       if (!targetUserId) {
         const { data: mem } = await supabase
           .from('members')
@@ -624,7 +624,7 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
       if (resolvedPhone) profileUpdates.phone = resolvedPhone;
       if (resolvedAvatar) profileUpdates.avatar_url = resolvedAvatar;
       if (resolvedPlan) {
-        profileUpdates.membership_plan = (resolvedPlan === 'Walk-in' || resolvedPlan === 'None') ? null : resolvedPlan;
+        profileUpdates.membership_plan = (resolvedPlan === 'Walk-in' || (resolvedPlan as any) === 'None') ? null : resolvedPlan;
       }
 
       if (Object.keys(profileUpdates).length > 0) {
@@ -668,14 +668,14 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
         const expiryDateObj = new Date();
         expiryDateObj.setFullYear(expiryDateObj.getFullYear() + 1);
         const expiryStr = expiryDateObj.toISOString().split('T')[0];
-        const assignedMemberId = prof?.member_id || `M${Math.floor(100 + Math.random() * 900)}`;
+        const assignedMemberId = (prof as any)?.member_id || `M${Math.floor(100 + Math.random() * 900)}`;
 
         await supabase.from('members').insert({
           member_id: assignedMemberId,
           user_id: targetUserId,
-          name: resolvedName || prof?.name || 'Club Member',
+          name: resolvedName || (prof as any)?.name || 'Club Member',
           email: resolvedEmail,
-          phone: resolvedPhone || prof?.phone || '+91 98765 43210',
+          phone: resolvedPhone || (prof as any)?.phone || '+91 98765 43210',
           date_of_birth: dateOfBirth || '2000-01-01',
           plan: resolvedPlan,
           start_date: todayStr,

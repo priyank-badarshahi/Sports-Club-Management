@@ -121,7 +121,12 @@ export const PlansPage: React.FC = () => {
 
     // If member is already logged in, upgrade them directly
     if (isMemberLoggedIn && currentMember) {
-      upgradeMember(currentMember.id, selectedTier, totalAmount, result.method);
+      upgradeMember(
+        currentMember.id,
+        selectedTier,
+        totalAmount,
+        (result.method === 'pay_later' ? 'cash' : result.method) as 'card' | 'cash' | 'upi' | 'wallet'
+      );
       const invoiceNumber = `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
       setCurrentUser({
