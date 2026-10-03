@@ -115,6 +115,7 @@ export interface UserProfile {
   avatar: string;
   tier?: MembershipTier;
   memberId?: string;
+  phone?: string;
 }
 
 export const DEMO_USERS: Record<Role, UserProfile> = {
@@ -332,6 +333,14 @@ interface AppState {
   
   logAudit: (action: string, entity: string, details: string) => void;
   setCurrentUser: (user: UserProfile) => void;
+  updateUserProfile: (profileData: {
+    name?: string;
+    phone?: string;
+    avatar?: string;
+    dateOfBirth?: string;
+    preferredSports?: SportType[];
+    emergencyContact?: { name: string; phone: string; relation: string };
+  }) => void;
   loginUser: (user: UserProfile) => void;
   syncMembers: () => Promise<void>;
   syncEmployees: () => Promise<void>;
@@ -1804,8 +1813,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   updateMember: (id, data) => {
+    const current = get().currentUser;
+    const isCurrentUser =
+      (current.memberId && current.memberId === id) ||
+      get().members.find((m) => m.id === id)?.email?.toLowerCase() === current.email?.toLowerCase();
+
     set((state) => ({
       members: state.members.map((m) => (m.id === id ? { ...m, ...data } : m)),
+      currentUser: isCurrentUser
+        ? {
+            ...current,
+            name: data.fullName !== undefined ? data.fullName : current.name,
+            avatar: data.avatar !== undefined ? data.avatar : current.avatar,
+            phone: data.phone !== undefined ? data.phone : current.phone,
+          }
+        : current,
     }));
     get().logAudit('MEMBER_UPDATED', `Member #${id}`, 'Updated member profile data');
     persist(get());
@@ -4283,6 +4305,59 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setCurrentUser: (user) => {
     set({ currentUser: user });
+    persist(get());
+  },
+
+  updateUserProfile: (profileData) => {
+    const current = get().currentUser;
+    const updatedUser: UserProfile = {
+      ...current,
+      name: profileData.name !== undefined ? profileData.name : current.name,
+      avatar: profileData.avatar !== undefined ? profileData.avatar : current.avatar,
+      phone: profileData.phone !== undefined ? profileData.phone : current.phone,
+    };
+
+    const updatedMembers = get().members.map((m) => {
+      const isCurrent =
+        (current.memberId && m.id === current.memberId) ||
+        (current.email && m.email?.toLowerCase() === current.email.toLowerCase());
+
+      if (isCurrent) {
+        return {
+          ...m,
+          fullName: profileData.name !== undefined ? profileData.name : m.fullName,
+          phone: profileData.phone !== undefined ? profileData.phone : m.phone,
+          avatar: profileData.avatar !== undefined ? profileData.avatar : m.avatar,
+          dateOfBirth: profileData.dateOfBirth !== undefined ? profileData.dateOfBirth : m.dateOfBirth,
+          preferredSports: profileData.preferredSports !== undefined ? profileData.preferredSports : m.preferredSports,
+          emergencyContact: profileData.emergencyContact !== undefined ? profileData.emergencyContact : m.emergencyContact,
+        };
+      }
+      return m;
+    });
+
+    const updatedEmployees = get().employees.map((e) => {
+      if (e.email?.toLowerCase() === current.email?.toLowerCase()) {
+        return {
+          ...e,
+          name: profileData.name !== undefined ? profileData.name : e.name,
+          phone: profileData.phone !== undefined ? profileData.phone : e.phone,
+        };
+      }
+      return e;
+    });
+
+    set({
+      currentUser: updatedUser,
+      members: updatedMembers,
+      employees: updatedEmployees,
+    });
+
+    get().logAudit(
+      'PROFILE_UPDATED',
+      `User ${current.email}`,
+      `Updated user profile details: ${profileData.name || current.name}`
+    );
     persist(get());
   },
 

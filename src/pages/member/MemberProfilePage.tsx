@@ -1,20 +1,74 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../../store';
-import { Trophy, ShieldCheck, Mail, Phone, Calendar, User, Check, Edit2, QrCode, Wallet, Plus, ArrowUpRight, CreditCard, Sparkles, History } from 'lucide-react';
+import {
+  Trophy,
+  ShieldCheck,
+  Mail,
+  Phone,
+  Calendar,
+  User,
+  Check,
+  Edit2,
+  QrCode,
+  Wallet,
+  Plus,
+  ArrowUpRight,
+  CreditCard,
+  Sparkles,
+  History,
+  Shield,
+  Key,
+  Eye,
+  EyeOff,
+  Camera,
+  AlertCircle,
+  Lock,
+} from 'lucide-react';
 import { getTierBadgeClass, getTierName, formatDate, formatINR, formatDateTime } from '../../lib/formatters';
 
+const AVATAR_PRESETS = [
+  { label: 'Tennis Pro', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80' },
+  { label: 'Athletic Male', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80' },
+  { label: 'Athletic Female', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&h=150&q=80' },
+  { label: 'Padel Champion', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80' },
+  { label: 'Badminton Ace', url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&h=150&q=80' },
+  { label: 'Executive Sport', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80' },
+];
+
 export const MemberProfilePage: React.FC = () => {
-  const { currentUser, members, updateMember, addToast, plans, topupWallet, payments } = useAppStore();
-  const currentMember = members.find((m) => m.id === currentUser.memberId) || members[0];
+  const { currentUser, members, updateMember, updateUserProfile, addToast, plans, topupWallet, payments } = useAppStore();
+  const currentMember =
+    members.find(
+      (m) =>
+        (currentUser.memberId && m.id === currentUser.memberId) ||
+        (currentUser.email && m.email?.toLowerCase() === currentUser.email?.toLowerCase())
+    ) || members[0];
   const plan = plans.find((p) => p.tier === currentMember.tier) || plans[0];
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  // Full Profile edit modal state
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    fullName: currentMember.fullName,
     phone: currentMember.phone,
-    emergencyName: currentMember.emergencyContact.name,
-    emergencyPhone: currentMember.emergencyContact.phone,
-    emergencyRelation: currentMember.emergencyContact.relation,
+    dateOfBirth: currentMember.dateOfBirth || '2000-01-01',
+    preferredSport: currentMember.preferredSports?.[0] || 'tennis',
+    avatar: currentMember.avatar,
+    emergencyName: currentMember.emergencyContact?.name || '',
+    emergencyPhone: currentMember.emergencyContact?.phone || '',
+    emergencyRelation: currentMember.emergencyContact?.relation || '',
   });
+
+  // Password change modal state
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   // Wallet Top-up state
   const [topupAmount, setTopupAmount] = useState('2000');
@@ -33,22 +87,149 @@ export const MemberProfilePage: React.FC = () => {
     setTimeout(() => setRechargeSuccess(false), 3000);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleOpenEdit = () => {
+    setProfileForm({
+      fullName: currentMember.fullName,
+      phone: currentMember.phone,
+      dateOfBirth: currentMember.dateOfBirth || '2000-01-01',
+      preferredSport: currentMember.preferredSports?.[0] || 'tennis',
+      avatar: currentMember.avatar,
+      emergencyName: currentMember.emergencyContact?.name || '',
+      emergencyPhone: currentMember.emergencyContact?.phone || '',
+      emergencyRelation: currentMember.emergencyContact?.relation || '',
+    });
+    setProfileEditOpen(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateMember(currentMember.id, {
-      phone: formData.phone,
-      emergencyContact: {
-        name: formData.emergencyName,
-        phone: formData.emergencyPhone,
-        relation: formData.emergencyRelation,
-      },
-    });
-    setEditOpen(false);
-    addToast({
-      type: 'success',
-      title: 'Profile Updated',
-      message: 'Your emergency contact information has been saved.',
-    });
+    if (!profileForm.fullName.trim()) {
+      addToast({
+        type: 'error',
+        title: 'Name Required',
+        message: 'Please provide your full legal or member name.',
+      });
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentMember.email || currentUser.email,
+          fullName: profileForm.fullName.trim(),
+          phone: profileForm.phone.trim(),
+          dateOfBirth: profileForm.dateOfBirth,
+          avatar: profileForm.avatar.trim(),
+          emergencyContact: {
+            name: profileForm.emergencyName.trim(),
+            phone: profileForm.emergencyPhone.trim(),
+            relation: profileForm.emergencyRelation.trim(),
+          },
+          preferredSports: [profileForm.preferredSport],
+        }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.error || 'Failed to update profile.');
+      }
+
+      // Update in client store
+      updateUserProfile({
+        name: profileForm.fullName.trim(),
+        phone: profileForm.phone.trim(),
+        avatar: profileForm.avatar.trim(),
+        dateOfBirth: profileForm.dateOfBirth,
+        preferredSports: [profileForm.preferredSport as any],
+        emergencyContact: {
+          name: profileForm.emergencyName.trim(),
+          phone: profileForm.emergencyPhone.trim(),
+          relation: profileForm.emergencyRelation.trim(),
+        },
+      });
+
+      updateMember(currentMember.id, {
+        fullName: profileForm.fullName.trim(),
+        phone: profileForm.phone.trim(),
+        avatar: profileForm.avatar.trim(),
+        dateOfBirth: profileForm.dateOfBirth,
+        preferredSports: [profileForm.preferredSport as any],
+        emergencyContact: {
+          name: profileForm.emergencyName.trim(),
+          phone: profileForm.emergencyPhone.trim(),
+          relation: profileForm.emergencyRelation.trim(),
+        },
+      });
+
+      setProfileEditOpen(false);
+      addToast({
+        type: 'success',
+        title: 'Profile Updated Successfully',
+        message: 'Your personal details, contact information, and avatar have been saved.',
+      });
+    } catch (err: any) {
+      addToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: err.message || 'Could not save profile details.',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match. Please re-enter.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentMember.email || currentUser.email,
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.error || 'Failed to change password. Please check your current password.');
+      }
+
+      setPasswordModalOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      addToast({
+        type: 'success',
+        title: 'Password Changed Successfully',
+        message: 'Your login credentials have been updated. Use your new password for your next sign-in.',
+      });
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to update password.');
+      addToast({
+        type: 'error',
+        title: 'Password Change Failed',
+        message: err.message || 'Could not change password.',
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -69,11 +250,21 @@ export const MemberProfilePage: React.FC = () => {
       <div className="rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border-2 border-amber-400/60 shadow-2xl relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-slate-800">
           <div className="flex items-center gap-4">
-            <img
-              src={currentMember.avatar}
-              alt={currentMember.fullName}
-              className="w-16 h-16 rounded-2xl object-cover ring-2 ring-amber-400/60"
-            />
+            <div className="relative group shrink-0">
+              <img
+                src={currentMember.avatar}
+                alt={currentMember.fullName}
+                className="w-16 h-16 rounded-2xl object-cover ring-2 ring-amber-400/60 shadow-lg"
+              />
+              <button
+                type="button"
+                onClick={handleOpenEdit}
+                title="Change Avatar & Profile Details"
+                className="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition backdrop-blur-xs"
+              >
+                <Camera className="w-5 h-5 text-lime-400" />
+              </button>
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 {currentMember.tier && currentMember.tier !== 'none' && currentMember.tier !== 'walk_in' ? (
@@ -87,11 +278,21 @@ export const MemberProfilePage: React.FC = () => {
                 )}
                 <span className="text-xs font-bold text-lime-400">Official Pass</span>
               </div>
-              <h2 className="font-heading font-extrabold text-2xl text-white mt-1">
-                {currentMember.fullName}
-              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <h2 className="font-heading font-extrabold text-2xl text-white">
+                  {currentMember.fullName}
+                </h2>
+                <button
+                  type="button"
+                  onClick={handleOpenEdit}
+                  className="p-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-lime-400 transition"
+                  title="Edit Profile Details"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <p className="text-xs text-slate-400 font-mono mt-0.5">
-                {currentMember.memberNumber}
+                {currentMember.memberNumber} • {currentMember.phone}
               </p>
             </div>
           </div>
@@ -376,98 +577,413 @@ export const MemberProfilePage: React.FC = () => {
       </div>
 
       {/* Contact & Emergency Profile */}
-      <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-heading font-bold text-base text-white">Contact & Emergency Information</h3>
+      {/* Contact & Personal Profile */}
+      <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-lime-400">Personal Credentials</span>
+            <h3 className="font-heading font-extrabold text-xl text-white mt-0.5">
+              Personal Profile & Emergency Contacts
+            </h3>
+            <p className="text-xs text-slate-400">
+              Your registered identity details used across court bookings, club tournaments, and invoices.
+            </p>
+          </div>
           <button
-            onClick={() => setEditOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition"
+            onClick={handleOpenEdit}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-lime-400 border border-slate-700 hover:border-lime-400/40 shadow-sm transition self-start sm:self-auto"
           >
             <Edit2 className="w-3.5 h-3.5" />
-            <span>Edit Details</span>
+            <span>Edit Profile Details</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
-            <span className="text-slate-500 font-bold uppercase text-[10px]">Registered Phone</span>
-            <div className="text-white font-medium">{currentMember.phone}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs pt-2">
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Full Name</span>
+            <div className="text-white font-semibold">{currentMember.fullName}</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
-            <span className="text-slate-500 font-bold uppercase text-[10px]">Email Address</span>
-            <div className="text-white font-medium">{currentMember.email}</div>
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Verified Login Email</span>
+            <div className="text-white font-medium truncate">{currentMember.email}</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
-            <span className="text-slate-500 font-bold uppercase text-[10px]">Emergency Contact Person</span>
-            <div className="text-white font-medium">
-              {currentMember.emergencyContact.name} ({currentMember.emergencyContact.relation})
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Mobile Phone</span>
+            <div className="text-white font-medium">{currentMember.phone || 'Not provided'}</div>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Date of Birth</span>
+            <div className="text-white font-medium">{currentMember.dateOfBirth || '2000-01-01'}</div>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Preferred Primary Sport</span>
+            <div className="text-lime-400 font-semibold uppercase text-xs">
+              {currentMember.preferredSports?.[0] || 'Tennis'}
             </div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
-            <span className="text-slate-500 font-bold uppercase text-[10px]">Emergency Phone</span>
-            <div className="text-white font-medium">{currentMember.emergencyContact.phone}</div>
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/90 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Emergency Contact</span>
+            <div className="text-white font-medium truncate">
+              {currentMember.emergencyContact?.name || 'Contact'} ({currentMember.emergencyContact?.relation || 'Family'})
+            </div>
+            <div className="text-slate-400 text-[10px] font-mono mt-0.5">
+              {currentMember.emergencyContact?.phone || currentMember.phone}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Edit Modal */}
-      {editOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="font-heading font-bold text-lg text-white">Update Contact Details</h3>
-            <form onSubmit={handleSave} className="space-y-4 text-xs">
+      {/* Account Security & Password Card */}
+      <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 space-y-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div>
+            <div className="flex items-center gap-2 text-lime-400 font-bold text-xs uppercase tracking-wider">
+              <Shield className="w-4 h-4" />
+              <span>Account Credentials & Security</span>
+            </div>
+            <h3 className="font-heading font-extrabold text-xl text-white mt-1">
+              Login Password & Security
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Ensure your account is protected with a secure and unique login password.
+            </p>
+          </div>
+
+          <button
+            onClick={() => {
+              setPasswordError('');
+              setCurrentPassword('');
+              setNewPassword('');
+              setConfirmPassword('');
+              setPasswordModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs shadow-md shadow-lime-400/20 transition self-start sm:self-auto"
+          >
+            <Key className="w-4 h-4" />
+            <span>Change Password</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Login Email</span>
+            <div className="text-white font-medium truncate">{currentMember.email}</div>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Password Status</span>
+            <div className="text-white font-mono font-bold tracking-widest">••••••••••••</div>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-1">
+            <span className="text-slate-500 font-bold uppercase text-[10px] block">Security Protection</span>
+            <div className="flex items-center gap-1.5 text-lime-400 font-semibold">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Active & Protected</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Profile Details Modal */}
+      {profileEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl max-w-xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Phone Number</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white"
-                />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-lime-400">Personal Info</span>
+                <h3 className="font-heading font-extrabold text-xl text-white mt-0.5">
+                  Update Member Profile
+                </h3>
               </div>
-              <div>
-                <label className="text-slate-300 font-semibold block mb-1">Emergency Contact Name</label>
-                <input
-                  type="text"
-                  value={formData.emergencyName}
-                  onChange={(e) => setFormData({ ...formData, emergencyName: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setProfileEditOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
+              {/* Full Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Emergency Phone</label>
-                  <input
-                    type="tel"
-                    value={formData.emergencyPhone}
-                    onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-slate-300 font-semibold block mb-1">Relationship</label>
+                  <label className="text-slate-300 font-semibold block mb-1">Full Legal Name *</label>
                   <input
                     type="text"
-                    value={formData.emergencyRelation}
-                    onChange={(e) => setFormData({ ...formData, emergencyRelation: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white"
+                    required
+                    value={profileForm.fullName}
+                    onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                    placeholder="e.g. Vikram Malhotra"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Phone Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              {/* DOB & Sport */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={profileForm.dateOfBirth}
+                    onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Primary Sport</label>
+                  <select
+                    value={profileForm.preferredSport}
+                    onChange={(e) => setProfileForm({ ...profileForm, preferredSport: e.target.value as any })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400 capitalize"
+                  >
+                    <option value="tennis">Tennis</option>
+                    <option value="padel">Padel</option>
+                    <option value="badminton">Badminton</option>
+                    <option value="cricket">Box Cricket</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Profile Avatar Selection & Preview */}
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <label className="text-slate-300 font-semibold block">Profile Photo / Avatar</label>
+                <div className="flex items-center gap-3">
+                  <img
+                    src={profileForm.avatar}
+                    alt="Preview"
+                    className="w-12 h-12 rounded-xl object-cover ring-2 ring-lime-400/60 shrink-0"
+                  />
+                  <input
+                    type="url"
+                    value={profileForm.avatar}
+                    onChange={(e) => setProfileForm({ ...profileForm, avatar: e.target.value })}
+                    placeholder="Enter image URL (https://...)"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-[11px] focus:outline-none focus:border-lime-400 font-mono"
+                  />
+                </div>
+
+                {/* Preset Avatar Selection */}
+                <div>
+                  <span className="text-[10px] text-slate-400 block mb-1">Or choose an athletic avatar preset:</span>
+                  <div className="flex items-center gap-2 overflow-x-auto py-1">
+                    {AVATAR_PRESETS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setProfileForm({ ...profileForm, avatar: preset.url })}
+                        className={`relative rounded-xl overflow-hidden shrink-0 border-2 transition ${
+                          profileForm.avatar === preset.url
+                            ? 'border-lime-400 scale-105 shadow-md shadow-lime-400/20'
+                            : 'border-transparent opacity-60 hover:opacity-100'
+                        }`}
+                        title={preset.label}
+                      >
+                        <img src={preset.url} alt={preset.label} className="w-9 h-9 object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Emergency Contact Group */}
+              <div className="space-y-3 pt-2 border-t border-slate-800">
+                <span className="text-xs font-bold text-lime-400 block">Emergency Contact Information</span>
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Contact Person Name</label>
+                  <input
+                    type="text"
+                    value={profileForm.emergencyName}
+                    onChange={(e) => setProfileForm({ ...profileForm, emergencyName: e.target.value })}
+                    placeholder="e.g. Priya Malhotra"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">Emergency Phone</label>
+                    <input
+                      type="tel"
+                      value={profileForm.emergencyPhone}
+                      onChange={(e) => setProfileForm({ ...profileForm, emergencyPhone: e.target.value })}
+                      placeholder="+91 98765 11111"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">Relationship</label>
+                    <input
+                      type="text"
+                      value={profileForm.emergencyRelation}
+                      onChange={(e) => setProfileForm({ ...profileForm, emergencyRelation: e.target.value })}
+                      placeholder="e.g. Spouse / Parent / Sibling"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setEditOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold"
+                  disabled={isSavingProfile}
+                  onClick={() => setProfileEditOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-lime-400 text-slate-950 font-bold shadow-md shadow-lime-400/20"
+                  disabled={isSavingProfile}
+                  className="px-6 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold shadow-md shadow-lime-400/20 flex items-center gap-2 transition disabled:opacity-50"
                 >
-                  Save Changes
+                  {isSavingProfile ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Profile Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {passwordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-lime-400/10 text-lime-400 border border-lime-400/20">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-lg text-white">Change Account Password</h3>
+                  <p className="text-[11px] text-slate-400">Update your Champions Club password</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {passwordError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{passwordError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4 text-xs">
+              <div>
+                <label className="text-slate-300 font-semibold block mb-1">Current Password</label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter your current password"
+                    className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-semibold block mb-1">New Password *</label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Password must contain minimum 6 characters.
+                </span>
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-semibold block mb-1">Confirm New Password *</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  disabled={isChangingPassword}
+                  onClick={() => setPasswordModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isChangingPassword}
+                  className="px-5 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold shadow-md shadow-lime-400/20 flex items-center gap-2 transition disabled:opacity-50"
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <span>Update Password</span>
+                  )}
                 </button>
               </div>
             </form>

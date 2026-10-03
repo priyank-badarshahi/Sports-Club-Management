@@ -423,6 +423,230 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
   }
 });
 
+// Update Profile & Password Handler (supports updating Name, Phone, DOB, Avatar, Emergency Contact, and Password)
+async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
+  try {
+    const {
+      email,
+      name,
+      fullName,
+      phone,
+      avatar,
+      avatarUrl,
+      dateOfBirth,
+      emergencyContact,
+      currentPassword,
+      newPassword,
+    } = req.body;
+
+    const resolvedEmail = String(email || '').trim().toLowerCase();
+    if (!resolvedEmail) {
+      res.status(400).json({ success: false, error: 'User email is required to update profile.' });
+      return;
+    }
+
+    const resolvedName = (fullName || name || '').trim();
+    const resolvedPhone = (phone || '').trim();
+    const resolvedAvatar = (avatarUrl || avatar || '').trim();
+    let passwordUpdated = false;
+
+    // 1. Password change requested
+    if (newPassword) {
+      if (String(newPassword).length < 6) {
+        res.status(400).json({
+          success: false,
+          error: 'New password must be at least 6 characters long.',
+        });
+        return;
+      }
+
+      // If user is a demo staff account in memory
+      if (DEMO_STAFF_MAP[resolvedEmail]) {
+        if (currentPassword && DEMO_STAFF_MAP[resolvedEmail].password && DEMO_STAFF_MAP[resolvedEmail].password !== currentPassword) {
+          res.status(400).json({
+            success: false,
+            error: 'Current password does not match.',
+          });
+          return;
+        }
+        DEMO_STAFF_MAP[resolvedEmail].password = String(newPassword);
+        passwordUpdated = true;
+      }
+
+      if (isSupabaseConfigured) {
+        // Authenticate current password if supplied
+        if (currentPassword) {
+          const authClient = createAuthClient();
+          const { error: verifyErr } = await authClient.auth.signInWithPassword({
+            email: resolvedEmail,
+            password: String(currentPassword),
+          });
+
+          if (verifyErr && !DEMO_STAFF_MAP[resolvedEmail]) {
+            console.warn(`⚠️ [Password Update] Current password check failed for ${resolvedEmail}:`, verifyErr.message);
+            res.status(400).json({
+              success: false,
+              error: 'Current password verification failed. Please verify your current password.',
+            });
+            return;
+          }
+        }
+
+        // Find user by email in Supabase Auth to update password
+        try {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('email', resolvedEmail)
+            .maybeSingle();
+
+          let targetUserId = prof?.id;
+
+          if (!targetUserId) {
+            const { data: mem } = await supabase
+              .from('members')
+              .select('user_id')
+              .ilike('email', resolvedEmail)
+              .maybeSingle();
+            targetUserId = mem?.user_id;
+          }
+
+          if (!targetUserId) {
+            const { data: usersData } = await supabase.auth.admin.listUsers();
+            const matchedUser = usersData?.users?.find(
+              (u) => u.email?.toLowerCase() === resolvedEmail
+            );
+            if (matchedUser) targetUserId = matchedUser.id;
+          }
+
+          if (targetUserId) {
+            const { error: pwdErr } = await supabase.auth.admin.updateUserById(targetUserId, {
+              password: String(newPassword),
+            });
+            if (pwdErr) {
+              console.error('❌ Supabase Auth password update error:', pwdErr);
+              res.status(400).json({
+                success: false,
+                error: pwdErr.message || 'Failed to update password in auth system.',
+              });
+              return;
+            }
+            passwordUpdated = true;
+            console.log(`✅ [Supabase Auth] Password updated for user: ${resolvedEmail}`);
+          }
+        } catch (authPwdErr: any) {
+          console.warn('⚠️ Supabase password change exception:', authPwdErr?.message);
+        }
+      }
+    }
+
+    // 2. Profile Details Update (Name, Phone, Avatar, DOB, Emergency Contact)
+    if (DEMO_STAFF_MAP[resolvedEmail]) {
+      if (resolvedName) DEMO_STAFF_MAP[resolvedEmail].name = resolvedName;
+      if (resolvedPhone) DEMO_STAFF_MAP[resolvedEmail].phone = resolvedPhone;
+    }
+
+    if (isSupabaseConfigured) {
+      // Find target user ID
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('email', resolvedEmail)
+        .maybeSingle();
+
+      let targetUserId = prof?.id;
+      if (!targetUserId) {
+        const { data: mem } = await supabase
+          .from('members')
+          .select('user_id')
+          .ilike('email', resolvedEmail)
+          .maybeSingle();
+        targetUserId = mem?.user_id;
+      }
+
+      // Update Supabase Auth user metadata
+      if (targetUserId) {
+        try {
+          const metaUpdate: any = {};
+          if (resolvedName) metaUpdate.name = resolvedName;
+          if (resolvedPhone) metaUpdate.phone = resolvedPhone;
+          if (Object.keys(metaUpdate).length > 0) {
+            await supabase.auth.admin.updateUserById(targetUserId, {
+              user_metadata: metaUpdate,
+            });
+          }
+        } catch (e) {
+          console.warn('⚠️ Auth metadata update note:', e);
+        }
+      }
+
+      // Update public.profiles table
+      const profileUpdates: any = {};
+      if (resolvedName) profileUpdates.name = resolvedName;
+      if (resolvedPhone) profileUpdates.phone = resolvedPhone;
+      if (resolvedAvatar) profileUpdates.avatar_url = resolvedAvatar;
+
+      if (Object.keys(profileUpdates).length > 0) {
+        if (targetUserId) {
+          await supabase.from('profiles').update(profileUpdates).eq('id', targetUserId);
+        }
+        await supabase.from('profiles').update(profileUpdates).ilike('email', resolvedEmail);
+      }
+
+      // Update public.members table
+      const memberUpdates: any = {};
+      if (resolvedName) memberUpdates.name = resolvedName;
+      if (resolvedPhone) memberUpdates.phone = resolvedPhone;
+      if (resolvedAvatar) memberUpdates.avatar_url = resolvedAvatar;
+      if (dateOfBirth) memberUpdates.date_of_birth = dateOfBirth;
+      if (emergencyContact) {
+        memberUpdates.emergency_contact =
+          typeof emergencyContact === 'string' ? emergencyContact : JSON.stringify(emergencyContact);
+      }
+
+      if (Object.keys(memberUpdates).length > 0) {
+        if (targetUserId) {
+          await supabase.from('members').update(memberUpdates).eq('user_id', targetUserId);
+        }
+        await supabase.from('members').update(memberUpdates).ilike('email', resolvedEmail);
+      }
+
+      // Update public.employees table if user is an employee
+      const employeeUpdates: any = {};
+      if (resolvedName) employeeUpdates.name = resolvedName;
+      if (resolvedPhone) employeeUpdates.phone = resolvedPhone;
+      if (Object.keys(employeeUpdates).length > 0) {
+        if (targetUserId) {
+          await supabase.from('employees').update(employeeUpdates).eq('id', targetUserId);
+        }
+        await supabase.from('employees').update(employeeUpdates).ilike('email', resolvedEmail);
+      }
+    }
+
+    console.log(`✅ [Profile Update] Successfully updated profile for ${resolvedEmail}`);
+    res.json({
+      success: true,
+      message: passwordUpdated ? 'Profile and password updated successfully!' : 'Profile details saved successfully!',
+      passwordUpdated,
+      user: {
+        name: resolvedName,
+        phone: resolvedPhone,
+        avatar: resolvedAvatar,
+      },
+    });
+  } catch (err: any) {
+    console.error('❌ Error updating profile:', err);
+    res.status(500).json({
+      success: false,
+      error: err?.message || 'Internal server error updating profile.',
+    });
+  }
+}
+
+app.put('/api/user/profile', handleProfileUpdate);
+app.post('/api/user/profile', handleProfileUpdate);
+app.post('/api/auth/change-password', handleProfileUpdate);
+
 // Helper to map DB row to frontend Member interface
 function formatMemberForClient(m: any) {
   const tierRaw = String(m.plan || '').toLowerCase();

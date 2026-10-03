@@ -13,7 +13,15 @@ import {
   ShieldAlert, 
   ExternalLink,
   Menu,
-  X
+  X,
+  User,
+  Settings,
+  Lock,
+  Key,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Camera
 } from 'lucide-react';
 import { formatDateTime } from '../lib/formatters';
 
@@ -33,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
     currentUser, 
     setRole, 
     setCurrentUser,
+    updateUserProfile,
     notifications, 
     markNotificationRead, 
     markAllNotificationsRead,
@@ -44,6 +53,20 @@ export const Header: React.FC<HeaderProps> = ({
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
+  // Account & Password Edit State
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const [accountName, setAccountName] = useState('');
+  const [accountPhone, setAccountPhone] = useState('');
+  const [accountAvatar, setAccountAvatar] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [accountError, setAccountError] = useState('');
 
   const roleRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -95,6 +118,86 @@ export const Header: React.FC<HeaderProps> = ({
       title: 'Logged Out',
       message: 'You have been successfully logged out.'
     });
+  };
+
+  const handleOpenAccountModal = () => {
+    setAccountName(currentUser.name || '');
+    setAccountPhone(currentUser.phone || '');
+    setAccountAvatar(currentUser.avatar || '');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setAccountError('');
+    setRoleDropdownOpen(false);
+    setAccountModalOpen(true);
+  };
+
+  const handleSaveAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountError('');
+
+    if (!accountName.trim()) {
+      setAccountError('Name is required.');
+      return;
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        setAccountError('New password must be at least 6 characters long.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setAccountError('New passwords do not match. Please re-enter.');
+        return;
+      }
+    }
+
+    setIsSavingAccount(true);
+    try {
+      const payload: any = {
+        email: currentUser.email,
+        fullName: accountName.trim(),
+        phone: accountPhone.trim(),
+        avatar: accountAvatar.trim(),
+      };
+      if (newPassword) {
+        payload.currentPassword = currentPassword;
+        payload.newPassword = newPassword;
+      }
+
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update profile details.');
+      }
+
+      updateUserProfile({
+        name: accountName.trim(),
+        phone: accountPhone.trim(),
+        avatar: accountAvatar.trim(),
+      });
+
+      setAccountModalOpen(false);
+      addToast({
+        type: 'success',
+        title: 'Profile Updated Successfully',
+        message: data.message || 'Your account credentials have been saved.',
+      });
+    } catch (err: any) {
+      setAccountError(err.message || 'Failed to update profile.');
+      addToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: err.message || 'Could not save account details.',
+      });
+    } finally {
+      setIsSavingAccount(false);
+    }
   };
 
   const handleResetData = () => {
@@ -314,6 +417,27 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div className="p-2 bg-slate-950/80 border-t border-slate-800 flex flex-col gap-1.5 text-xs">
+                  {currentRole === 'member' && (
+                    <Link
+                      to="/member/profile"
+                      onClick={() => setRoleDropdownOpen(false)}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-slate-800/80 text-lime-400 font-semibold flex items-center gap-2 transition"
+                    >
+                      <User className="w-4 h-4" />
+                      <span>Member Passport & Profile</span>
+                    </Link>
+                  )}
+
+                  {currentRole !== 'visitor' && (
+                    <button
+                      onClick={handleOpenAccountModal}
+                      className="w-full text-left p-2.5 rounded-xl hover:bg-slate-800/80 text-slate-200 hover:text-white font-medium flex items-center gap-2 transition"
+                    >
+                      <Settings className="w-4 h-4 text-slate-400" />
+                      <span>Edit Profile & Password</span>
+                    </button>
+                  )}
+
                   {currentRole !== 'visitor' ? (
                     <button
                       onClick={handleLogout}
@@ -375,6 +499,176 @@ export const Header: React.FC<HeaderProps> = ({
                 Yes, Reset All Data
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Account Settings & Password Change Modal */}
+      {accountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-lime-400/10 text-lime-400 border border-lime-400/20">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-lg text-white">Profile & Password Settings</h3>
+                  <p className="text-[11px] text-slate-400">{currentUser.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAccountModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {accountError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{accountError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveAccount} className="space-y-4 text-xs">
+              <div>
+                <label className="text-slate-300 font-semibold block mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-semibold block mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  value={accountPhone}
+                  onChange={(e) => setAccountPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-semibold block mb-1">Profile Photo URL</label>
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={accountAvatar || currentUser.avatar}
+                    alt="Preview"
+                    className="w-9 h-9 rounded-xl object-cover ring-1 ring-lime-400/60 shrink-0"
+                  />
+                  <input
+                    type="url"
+                    value={accountAvatar}
+                    onChange={(e) => setAccountAvatar(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-[11px] focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+              </div>
+
+              {/* Password Section */}
+              <div className="pt-3 border-t border-slate-800 space-y-3">
+                <div className="flex items-center gap-1.5 text-lime-400 font-bold text-xs uppercase tracking-wider">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Change Password (Optional)</span>
+                </div>
+                <p className="text-[11px] text-slate-400">Leave blank if you only want to update your name or phone.</p>
+
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Current Password</label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Enter current password"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400 pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Min 6 chars"
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400 pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">Confirm New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm password"
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400 pr-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  disabled={isSavingAccount}
+                  onClick={() => setAccountModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingAccount}
+                  className="px-5 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold shadow-md shadow-lime-400/20 flex items-center gap-2 transition disabled:opacity-50"
+                >
+                  {isSavingAccount ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Save Changes</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
