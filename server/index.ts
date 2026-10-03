@@ -562,7 +562,148 @@ app.post('/api/members', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// Create/Enroll a Staff Member: creates user in Supabase Auth, profiles table, and DEMO_STAFF_MAP
+// Helper to format DB employee record for client HR page
+function formatEmployeeForClient(emp: any, profile?: any): any {
+  const roleRaw = String(emp.role || profile?.role || 'front_desk').toLowerCase();
+  let role = 'front_desk';
+  if (roleRaw.includes('bar')) role = 'bar_staff';
+  else if (roleRaw.includes('shop')) role = 'shop_staff';
+  else if (roleRaw.includes('manager')) role = 'manager';
+  else if (roleRaw.includes('coach')) role = 'coach';
+  else role = 'front_desk';
+
+  let department = 'Front Office';
+  if (role === 'bar_staff') department = 'Food & Beverage';
+  else if (role === 'shop_staff') department = 'Pro Shop & Retail';
+  else if (role === 'manager') department = 'Management';
+  else if (role === 'coach') department = 'Sports & Coaching';
+
+  const monthlySalary = emp.hourly_wage ? emp.hourly_wage * 160 : 38000;
+  const codePrefix = role === 'front_desk' ? 'FD' : role === 'bar_staff' ? 'BR' : role === 'shop_staff' ? 'SH' : 'MGR';
+  const empId = profile?.member_id || `${codePrefix}${Math.floor(100 + Math.random() * 900)}`;
+
+  return {
+    id: emp.id || profile?.id || `emp_${Date.now()}`,
+    empId,
+    name: emp.name || profile?.name || 'Staff Member',
+    role,
+    department,
+    phone: emp.phone || profile?.phone || '+91 98765 00000',
+    email: emp.email || profile?.email || '',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+    monthlySalary,
+    salaryStructure: {
+      baseSalary: monthlySalary,
+      hraAllowance: Math.round(monthlySalary * 0.2),
+      transportAllowance: 3000,
+      specialAllowance: Math.round(monthlySalary * 0.1),
+      pfEligible: true,
+      taxDeductionPercent: 5,
+      bankAccount: 'HDFC-502000' + Math.floor(1000 + Math.random() * 9000),
+      ifscCode: 'HDFC0000428',
+    },
+    documents: [],
+    shiftPreference: { preferredShift: 'morning', maxWeeklyHours: 44, preferredOffDays: ['Sunday'] },
+    leaveBalances: { casual: 12, sick: 10, annual: 15, emergency: 5, usedCasual: 0, usedSick: 0, usedAnnual: 0, usedEmergency: 0 },
+    emergencyContact: { name: 'Emergency Family', relation: 'Family', phone: emp.phone || profile?.phone || '+91 98765 00000' },
+    status: emp.status || 'active',
+    joinDate: emp.created_at ? emp.created_at.split('T')[0] : '2026-01-15',
+  };
+}
+
+// Fetch all staff employees from Supabase database
+app.get('/api/employees', async (req: Request, res: Response) => {
+  try {
+    if (isSupabaseConfigured) {
+      // 1. Fetch from Supabase employees table
+      const { data: dbEmployees, error: empErr } = await supabase
+        .from('employees')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // 2. Fetch non-member staff from profiles table
+      const { data: staffProfiles, error: profErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('role', 'member');
+
+      const employeesMap = new Map<string, any>();
+
+      // Populate from employees table
+      (dbEmployees || []).forEach((emp: any) => {
+        const formatted = formatEmployeeForClient(emp);
+        if (emp.email) employeesMap.set(emp.email.toLowerCase(), formatted);
+        else employeesMap.set(emp.id, formatted);
+      });
+
+      // Populate from profiles table
+      (staffProfiles || []).forEach((prof: any) => {
+        const email = prof.email?.toLowerCase();
+        if (email && !employeesMap.has(email)) {
+          employeesMap.set(email, formatEmployeeForClient({
+            id: prof.id,
+            name: prof.name,
+            role: prof.role === 'frontdesk' ? 'Front Desk' : prof.role === 'bar' ? 'Bar Staff' : prof.role === 'shop' ? 'Shop Staff' : 'Manager',
+            department: prof.role === 'frontdesk' ? 'Front Desk' : prof.role === 'bar' ? 'Cafeteria & Bar' : prof.role === 'shop' ? 'Sports Shop' : 'Operations & Maintenance',
+            phone: prof.phone,
+            email: prof.email,
+            status: 'active',
+            hourly_wage: 235,
+          }, prof));
+        }
+      });
+
+      // Populate from active DEMO_STAFF_MAP
+      Object.entries(DEMO_STAFF_MAP).forEach(([email, staff]) => {
+        const lowerEmail = email.toLowerCase();
+        if (!employeesMap.has(lowerEmail)) {
+          employeesMap.set(lowerEmail, {
+            id: `usr_${staff.role}_${lowerEmail.replace(/[^a-z0-9]/g, '')}`,
+            empId: staff.memberId || 'STF100',
+            name: staff.name,
+            role: staff.role as any,
+            department: staff.role === 'front_desk' ? 'Front Office' : staff.role === 'bar_staff' ? 'Food & Beverage' : staff.role === 'shop_staff' ? 'Pro Shop & Retail' : 'Management',
+            phone: staff.phone || '+91 98765 22222',
+            email: lowerEmail,
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+            monthlySalary: 38000,
+            salaryStructure: {
+              baseSalary: 38000,
+              hraAllowance: 7600,
+              transportAllowance: 3000,
+              specialAllowance: 3800,
+              pfEligible: true,
+              taxDeductionPercent: 5,
+              bankAccount: 'HDFC-502000' + Math.floor(1000 + Math.random() * 9000),
+              ifscCode: 'HDFC0000428',
+            },
+            documents: [],
+            shiftPreference: { preferredShift: 'morning', maxWeeklyHours: 44, preferredOffDays: ['Sunday'] },
+            leaveBalances: { casual: 12, sick: 10, annual: 15, emergency: 5, usedCasual: 0, usedSick: 0, usedAnnual: 0, usedEmergency: 0 },
+            emergencyContact: { name: 'Emergency Family', relation: 'Family', phone: staff.phone || '+91 98765 22222' },
+            status: 'active',
+            joinDate: '2026-01-15',
+          });
+        }
+      });
+
+      const employeesList = Array.from(employeesMap.values());
+      res.json({
+        success: true,
+        employees: employeesList,
+        count: employeesList.length,
+      });
+      return;
+    }
+
+    res.json({ success: true, employees: [] });
+  } catch (err: any) {
+    console.error('❌ Error fetching employees:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Create/Enroll a Staff Member: creates user in Supabase Auth, profiles table, employees table, and DEMO_STAFF_MAP
 app.post('/api/employees', async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password, role, phone, department, monthlySalary } = req.body;
@@ -665,6 +806,37 @@ app.post('/api/employees', async (req: Request, res: Response): Promise<void> =>
 
         if (profileError) {
           console.warn('⚠️ Supabase staff profile upsert warning:', profileError.message);
+        }
+
+        // 3. Upsert into public.employees table in Supabase
+        try {
+          const empRoleEnum = standardRole === 'front_desk' ? 'Front Desk'
+                            : standardRole === 'bar_staff' ? 'Bar Staff'
+                            : standardRole === 'shop_staff' ? 'Shop Staff'
+                            : 'Manager';
+          const empDeptEnum = standardRole === 'front_desk' ? 'Front Desk'
+                            : standardRole === 'bar_staff' ? 'Cafeteria & Bar'
+                            : standardRole === 'shop_staff' ? 'Sports Shop'
+                            : 'Operations & Maintenance';
+
+          const initials = resolvedName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'ST';
+          const wage = Math.round((monthlySalary || 38000) / 160);
+
+          await supabase.from('employees').upsert({
+            id: userId,
+            name: resolvedName,
+            role: empRoleEnum,
+            department: empDeptEnum,
+            phone: resolvedPhone,
+            email: resolvedEmail,
+            shift: 'Morning (06:00 - 14:00)',
+            status: 'active',
+            avatar_initials: initials,
+            hourly_wage: wage,
+          });
+          console.log(`✅ [Supabase employees table] Saved employee ${resolvedName} (${empRoleEnum})`);
+        } catch (dbEmpErr) {
+          console.warn('⚠️ Supabase employees table sync note:', dbEmpErr);
         }
       }
     }

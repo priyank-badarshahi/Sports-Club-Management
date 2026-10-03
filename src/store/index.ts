@@ -334,6 +334,7 @@ interface AppState {
   setCurrentUser: (user: UserProfile) => void;
   loginUser: (user: UserProfile) => void;
   syncMembers: () => Promise<void>;
+  syncEmployees: () => Promise<void>;
   resetDemoData: () => void;
   updateSettings: (newSettings: Partial<ClubSettings>) => void;
   pullFromSupabase: () => Promise<boolean>;
@@ -4306,6 +4307,30 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     } catch (err) {
       console.warn('Could not sync members from backend:', err);
+    }
+  },
+
+  syncEmployees: async () => {
+    try {
+      const res = await fetch('/api/employees');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.employees) && data.employees.length > 0) {
+          const currentEmployees = get().employees;
+          const dbIds = new Set(data.employees.map((e: any) => e.id));
+          const dbEmails = new Set(data.employees.map((e: any) => e.email?.toLowerCase()).filter(Boolean));
+
+          const remaining = currentEmployees.filter(
+            (e) => !dbIds.has(e.id) && (!e.email || !dbEmails.has(e.email.toLowerCase()))
+          );
+
+          set({ employees: [...data.employees, ...remaining] });
+          persist(get());
+          console.log(`✅ [Zustand] Synced ${data.employees.length} employees from Supabase database`);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not sync employees from backend:', err);
     }
   },
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppStore } from '../../store';
 import { 
   Users, 
@@ -59,8 +59,35 @@ export const StaffHrPage: React.FC = () => {
     runPayrollMonth, 
     markPayrollPaid,
     createCoachCourtBlock,
+    syncEmployees,
     addToast
   } = useAppStore();
+
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    syncEmployees();
+  }, [syncEmployees]);
+
+  const handleManualSync = async () => {
+    try {
+      setIsSyncing(true);
+      await syncEmployees();
+      addToast({
+        type: 'success',
+        title: 'HR Records Synchronized',
+        message: 'Loaded real-time staff records from Supabase database.',
+      });
+    } catch (e) {
+      addToast({
+        type: 'error',
+        title: 'Sync Failed',
+        message: 'Could not fetch employee records from database.',
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<'employees' | 'roster' | 'attendance' | 'leaves' | 'payroll' | 'coaches'>('employees');
 
@@ -240,6 +267,9 @@ export const StaffHrPage: React.FC = () => {
         emergencyContact: { name: 'Emergency Family', relation: 'Family', phone: newEmployeeForm.phone.trim() },
         status: 'active',
       });
+
+      // Synchronize with database
+      await syncEmployees();
 
       addToast({
         type: 'success',
@@ -502,13 +532,25 @@ export const StaffHrPage: React.FC = () => {
               </select>
             </div>
 
-            <button
-              onClick={() => setShowAddEmployeeModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-xs font-bold transition shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              + Add Staff Profile
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleManualSync}
+                disabled={isSyncing}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition disabled:opacity-60 border border-slate-700"
+                title="Sync live records from Supabase database"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-lime-400' : ''}`} />
+                <span>{isSyncing ? 'Syncing...' : 'Sync DB'}</span>
+              </button>
+
+              <button
+                onClick={() => setShowAddEmployeeModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-xs font-bold transition shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                + Enroll Staff Member
+              </button>
+            </div>
           </div>
 
           <div className="rounded-3xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
