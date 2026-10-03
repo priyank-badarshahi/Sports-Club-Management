@@ -350,24 +350,34 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
         return;
       }
 
-      // If standard Supabase login failed, check staff demo fallback accounts for admin evaluation
-      const DEMO_STAFF_MAP: Record<string, { role: string; name: string; memberId?: string; membershipPlan?: string }> = {
-        'jack@gmail.com': { role: 'owner', name: 'Jack Jackson', memberId: 'ADM001', membershipPlan: 'Gold' },
-        'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', memberId: 'ADM001', membershipPlan: 'Gold' },
-        'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', memberId: 'ADM001', membershipPlan: 'Gold' },
-        'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma' },
-        'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma' },
-        'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra' },
-        'ananya.shop@championsclub.in': { role: 'shop_staff', name: 'Ananya Sen' },
-        'bar@championsclub.demo': { role: 'bar_staff', name: 'Chef Amit Roy' },
-        'rohan.bar@championsclub.in': { role: 'bar_staff', name: 'Rohan Das' },
-        'manager@championsclub.demo': { role: 'manager', name: 'Sanjay Verma' },
-        'arjun.manager@championsclub.in': { role: 'manager', name: 'Arjun Rao' },
+      // Staff verification map requiring valid password for each staff account
+      const DEMO_STAFF_MAP: Record<string, { role: string; name: string; password?: string; memberId?: string; membershipPlan?: string; phone?: string }> = {
+        'priyank@gmail.com': { role: 'front_desk', name: 'Priyank Patel', password: 'priyank', memberId: 'FD001', phone: '+91 98765 22222' },
+        'jack@gmail.com': { role: 'owner', name: 'Jack Jackson', password: 'jackson', memberId: 'ADM001', membershipPlan: 'Gold', phone: '+91 98765 00001' },
+        'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', password: 'password', memberId: 'ADM001', membershipPlan: 'Gold' },
+        'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', password: 'password', memberId: 'ADM001', membershipPlan: 'Gold' },
+        'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma', password: 'password', memberId: 'FD002' },
+        'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma', password: 'password', memberId: 'FD003' },
+        'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra', password: 'password', memberId: 'SH001' },
+        'ananya.shop@championsclub.in': { role: 'shop_staff', name: 'Ananya Sen', password: 'password', memberId: 'SH002' },
+        'bar@championsclub.demo': { role: 'bar_staff', name: 'Chef Amit Roy', password: 'password', memberId: 'BR001' },
+        'rohan.bar@championsclub.in': { role: 'bar_staff', name: 'Rohan Das', password: 'password', memberId: 'BR002' },
+        'manager@championsclub.demo': { role: 'manager', name: 'Sanjay Verma', password: 'password', memberId: 'MGR001' },
+        'arjun.manager@championsclub.in': { role: 'manager', name: 'Arjun Rao', password: 'password', memberId: 'MGR002' },
       };
 
       if (DEMO_STAFF_MAP[cleanIdentifier]) {
         const staff = DEMO_STAFF_MAP[cleanIdentifier];
-        console.log(`ℹ️ [Staff Login] Logged in as demo role: ${staff.role}`);
+        if (staff.password && String(password) !== staff.password) {
+          console.warn(`⚠️ [Staff Login] Incorrect password entered for staff: ${cleanIdentifier}`);
+          res.status(401).json({
+            success: false,
+            error: 'Invalid password. Please verify your staff credentials.',
+          });
+          return;
+        }
+
+        console.log(`ℹ️ [Staff Login] Authenticated staff role: ${staff.role} (${staff.name})`);
         res.json({
           success: true,
           message: 'Staff login verified',
@@ -376,9 +386,9 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
             name: staff.name,
             email: cleanIdentifier,
             role: staff.role,
-            memberId: staff.memberId || 'M001',
+            memberId: staff.memberId || 'STF001',
             membershipPlan: staff.membershipPlan || 'Gold',
-            phone: '+91 98765 00001',
+            phone: staff.phone || '+91 98765 22222',
           },
         });
         return;

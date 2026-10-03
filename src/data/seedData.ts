@@ -3830,6 +3830,36 @@ export const INITIAL_EXPENSES: Expense[] = [
 
 export const INITIAL_EMPLOYEES: Employee[] = [
   {
+    id: 'emp_priyank',
+    empId: 'CC-EMP-00',
+    name: 'Priyank Patel',
+    role: 'front_desk',
+    department: 'Front Office',
+    phone: '+91 98765 22222',
+    email: 'priyank@gmail.com',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80',
+    monthlySalary: 45000,
+    salaryStructure: {
+      baseSalary: 45000,
+      hraAllowance: 9000,
+      transportAllowance: 3500,
+      specialAllowance: 4500,
+      pfEligible: true,
+      taxDeductionPercent: 5,
+      bankAccount: 'HDFC-5020008819099',
+      ifscCode: 'HDFC0000428',
+      panNumber: 'PRYNK1234F',
+    },
+    documents: [
+      { id: 'doc_p1', name: 'Identity Proof (Aadhaar)', type: 'aadhaar', uploadedAt: '2025-01-10' }
+    ],
+    shiftPreference: { preferredShift: 'morning', maxWeeklyHours: 40, preferredOffDays: ['Sunday'] },
+    leaveBalances: { casual: 12, sick: 10, annual: 15, emergency: 5, usedCasual: 1, usedSick: 0, usedAnnual: 2, usedEmergency: 0 },
+    emergencyContact: { name: 'Emergency Family', relation: 'Family', phone: '+91 98765 22221' },
+    status: 'active',
+    joinDate: '2025-01-01',
+  },
+  {
     id: 'emp_1',
     empId: 'CC-EMP-01',
     name: 'Somdev Devvarman',
