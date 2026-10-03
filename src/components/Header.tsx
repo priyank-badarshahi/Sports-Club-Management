@@ -6,8 +6,6 @@ import {
   Trophy, 
   Search, 
   Bell, 
-  Sun, 
-  Moon, 
   ChevronDown, 
   RotateCcw, 
   Check, 
@@ -31,8 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
   showSidebarToggle 
 }) => {
   const { 
-    theme, 
-    toggleTheme, 
     currentRole, 
     currentUser, 
     setRole, 
@@ -180,16 +176,6 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label="Search"
           >
             <Search className="w-5 h-5" />
-          </button>
-
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-xl text-slate-400 hover:text-amber-300 hover:bg-slate-800 transition border border-transparent hover:border-slate-700"
-            aria-label="Toggle Light/Dark Theme"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-slate-700" />}
           </button>
 
           {/* Notifications Popover */}

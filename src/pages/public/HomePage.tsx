@@ -613,8 +613,13 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Simulated interactive map card */}
-            <div className="h-64 sm:h-72 rounded-2xl bg-slate-950 border border-slate-800 p-4 relative overflow-hidden flex flex-col justify-between group">
+            {/* Map link card */}
+            <a
+              href="https://maps.app.goo.gl/cBbQyXK7eXtd7JZw5"
+              target="_blank"
+              rel="noreferrer"
+              className="h-64 sm:h-72 rounded-2xl bg-slate-950 border border-slate-800 p-4 relative overflow-hidden flex flex-col justify-between group hover:border-lime-400/40 transition"
+            >
               <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#a3e635_1px,transparent_1px)] [background-size:16px_16px]" />
               <div className="relative z-10 flex justify-between items-start">
                 <span className="px-3 py-1 rounded-lg bg-slate-900/90 text-[11px] font-mono text-lime-400 border border-slate-800">
@@ -626,14 +631,18 @@ export const HomePage: React.FC = () => {
               </div>
               <div className="relative z-10 bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2 text-white font-heading font-bold text-sm">
-                  <Trophy className="w-4 h-4 text-lime-400" />
+                  <MapPin className="w-4 h-4 text-lime-400" />
                   <span>Champions Club Sports Complex</span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
                   Outer Ring Road, Bengaluru • Valet parking & EV charging stations available.
                 </p>
+                <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-lime-400 text-slate-950 text-xs font-bold">
+                  <span>Open in Google Maps</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </div>
               </div>
-            </div>
+            </a>
           </div>
         </div>
       </section>
