@@ -38,10 +38,15 @@ import { StaffSettingsPage } from './pages/staff/StaffSettingsPage';
 import { StaffMessagesPage } from './pages/staff/StaffMessagesPage';
 
 export default function App() {
-  const { theme, runLifecycleRemindersCheck } = useAppStore();
+  const { theme, runLifecycleRemindersCheck, pullFromSupabase } = useAppStore();
 
   useEffect(() => {
     runLifecycleRemindersCheck();
+    pullFromSupabase().then(success => {
+      if (success) {
+        console.log('Successfully synchronized application data from Supabase backend tables.');
+      }
+    });
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'champions_club_app_state_v1' && e.newValue) {
