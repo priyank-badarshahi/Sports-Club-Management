@@ -103,7 +103,7 @@ export const LoginPage: React.FC = () => {
       const rawPlan = result.user?.membershipPlan;
       const hasPlan = isMember && rawPlan && rawPlan !== 'None' && rawPlan !== 'none';
       const tier = hasPlan ? ((String(rawPlan).toLowerCase()) as MembershipTier) : undefined;
-      const memberId = isMember ? (result.user?.memberId || 'M001') : undefined;
+      const memberId = isMember ? (result.user?.memberId || `M${Math.floor(100 + Math.random() * 900)}`) : undefined;
 
       // Ensure member profile exists in Zustand client store for seamless navigation
       const storeMembers = useAppStore.getState().members;
@@ -298,6 +298,8 @@ export const LoginPage: React.FC = () => {
       });
 
       // Sync members from database
+      syncMembers();
+
       const redirectParam = searchParams.get('redirect');
       if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('/login')) {
         navigate(redirectParam);

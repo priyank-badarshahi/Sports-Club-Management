@@ -40,9 +40,26 @@ export const MemberProfilePage: React.FC = () => {
   const currentMember =
     members.find(
       (m) =>
-        (currentUser.memberId && m.id === currentUser.memberId) ||
-        (currentUser.email && m.email?.toLowerCase() === currentUser.email?.toLowerCase())
-    ) || members[0];
+        Boolean(currentUser.memberId && m.id === currentUser.memberId) ||
+        Boolean(currentUser.email && m.email?.toLowerCase() === currentUser.email?.toLowerCase())
+    ) || {
+      id: currentUser.memberId || `mem_${currentUser.email?.replace(/[^a-z0-9]/gi, '') || 'new'}`,
+      memberNumber: currentUser.memberId ? `CC-2026-${currentUser.memberId}` : 'CC-2026-NEW',
+      fullName: currentUser.name || 'Club Member',
+      email: currentUser.email || '',
+      phone: currentUser.phone || '',
+      avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+      tier: currentUser.tier || 'none',
+      status: 'active' as const,
+      joinDate: new Date().toISOString().split('T')[0],
+      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      walletBalance: 0,
+      activeTabBalance: 0,
+      emergencyContact: { name: 'Emergency Contact', phone: currentUser.phone || '', relation: 'Self' },
+      preferredSports: ['tennis'],
+      attendanceLog: [],
+      reminderLog: [],
+    };
   const plan = plans.find((p) => p.tier === currentMember.tier) || plans[0];
 
   // Full Profile edit modal state

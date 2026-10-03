@@ -954,6 +954,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newBlock: Booking = {
       id,
       courtId,
+      memberId: `system_${type}`,
       guestName: `${titlePrefix}`,
       guestPhone: 'Club Administration',
       tier: 'gold',

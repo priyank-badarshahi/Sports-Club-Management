@@ -34,7 +34,7 @@ export const CourtsPage: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     time: '18:00',
     guestName: currentUser.name,
-    guestPhone: '+91 98201 44520',
+    guestPhone: currentUser.phone || '',
   });
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
@@ -55,7 +55,7 @@ export const CourtsPage: React.FC = () => {
       date: new Date().toISOString().split('T')[0],
       time: '18:00',
       guestName: currentUser.name,
-      guestPhone: '+91 98201 44520',
+      guestPhone: currentUser.phone || '',
     });
     setBookingSuccess(false);
   };
@@ -77,6 +77,7 @@ export const CourtsPage: React.FC = () => {
       memberId: currentUser.memberId,
       guestName: bookingForm.guestName,
       guestPhone: bookingForm.guestPhone,
+      guestEmail: currentUser.email,
       tier,
       date: bookingForm.date,
       startTime: bookingForm.time,

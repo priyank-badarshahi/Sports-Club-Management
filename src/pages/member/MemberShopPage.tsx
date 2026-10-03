@@ -35,16 +35,19 @@ export const MemberShopPage: React.FC = () => {
 
   // Member info
   const member = useMemo(() => {
-    return members.find((m) => m.id === currentUser.memberId) || {
-      id: currentUser.memberId || 'mem_1',
-      fullName: currentUser.name || 'Member',
-      tier: (currentUser.tier && currentUser.tier !== 'none') ? currentUser.tier : 'walk_in',
-      walletBalance: 0,
-      activeTabBalance: 0,
-      email: currentUser.email || 'member@championsclub.in',
-      phone: (currentUser as any).phone || '+91 98201 44520',
-      address: 'Bengaluru',
-    };
+    return (
+      members.find((m) => Boolean(currentUser.memberId && m.id === currentUser.memberId)) ||
+      members.find((m) => Boolean(currentUser.email && m.email?.toLowerCase() === currentUser.email?.toLowerCase())) || {
+        id: currentUser.memberId || `mem_${currentUser.email?.replace(/[^a-z0-9]/gi, '') || 'new'}`,
+        fullName: currentUser.name || 'Member',
+        tier: (currentUser.tier && currentUser.tier !== 'none') ? currentUser.tier : 'walk_in',
+        walletBalance: 0,
+        activeTabBalance: 0,
+        email: currentUser.email || '',
+        phone: (currentUser as any).phone || '',
+        address: 'Bengaluru',
+      }
+    );
   }, [members, currentUser]);
 
   const tier = (member.tier && member.tier !== 'none') ? member.tier : 'walk_in';

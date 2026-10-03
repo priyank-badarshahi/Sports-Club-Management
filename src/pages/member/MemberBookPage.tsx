@@ -61,7 +61,9 @@ export const MemberBookPage: React.FC = () => {
     addRecurringBookings 
   } = useAppStore();
 
-  const currentMember = members.find((m) => m.id === currentUser.memberId);
+  const currentMember =
+    members.find((m) => Boolean(currentUser.memberId && m.id === currentUser.memberId)) ||
+    members.find((m) => Boolean(currentUser.email && m.email?.toLowerCase() === currentUser.email?.toLowerCase()));
   const hasTier = (currentMember?.tier && currentMember.tier !== 'none') || (currentUser.tier && currentUser.tier !== 'none');
   const tier: MembershipTier = hasTier ? ((currentMember?.tier && currentMember.tier !== 'none') ? currentMember.tier : currentUser.tier!) : 'walk_in';
   const plan = plans.find((p) => p.tier === tier);
@@ -143,10 +145,22 @@ export const MemberBookPage: React.FC = () => {
 
   // My bookings list
   const myBookings = useMemo(() => {
-    return bookings.filter(
-      (b) => b.memberId === currentUser.memberId || b.guestPhone === '+91 98201 44520'
-    );
-  }, [bookings, currentUser]);
+    return bookings.filter((b) => {
+      // Strictly exclude system facility blocks
+      if (b.bookingType === 'maintenance' || b.bookingType === 'tournament' || b.bookingType === 'coaching') {
+        return false;
+      }
+      const matchesMemberId = Boolean(currentUser.memberId && b.memberId && b.memberId === currentUser.memberId);
+      const matchesCurrentMemberId = Boolean(currentMember?.id && b.memberId && b.memberId === currentMember.id);
+      const matchesEmail = Boolean(currentUser.email && b.guestEmail && b.guestEmail.toLowerCase() === currentUser.email.toLowerCase());
+      const matchesPhone = Boolean(
+        (currentUser.phone || currentMember?.phone) &&
+        b.guestPhone &&
+        (b.guestPhone === currentUser.phone || b.guestPhone === currentMember?.phone)
+      );
+      return matchesMemberId || matchesCurrentMemberId || matchesEmail || matchesPhone;
+    });
+  }, [bookings, currentUser, currentMember]);
 
   const upcomingBookings = myBookings.filter((b) => b.status !== 'cancelled' && b.status !== 'completed');
   const pastBookings = myBookings.filter((b) => b.status === 'cancelled' || b.status === 'completed');
@@ -182,7 +196,8 @@ export const MemberBookPage: React.FC = () => {
         startTime: selectedTime,
         memberId: currentUser.memberId,
         guestName: currentUser.name,
-        guestPhone: currentMember?.phone || '+91 98201 44520',
+        guestPhone: currentMember?.phone || currentUser.phone || '',
+        guestEmail: currentMember?.email || currentUser.email || '',
         tier,
         sport: selectedCourt.sport,
         paymentMethod: paymentMethod as any,
@@ -198,8 +213,8 @@ export const MemberBookPage: React.FC = () => {
       courtId: selectedCourt.id,
       memberId: currentUser.memberId,
       guestName: currentUser.name,
-      guestPhone: currentMember?.phone || '+91 98201 44520',
-      guestEmail: currentMember?.email,
+      guestPhone: currentMember?.phone || currentUser.phone || '',
+      guestEmail: currentMember?.email || currentUser.email || '',
       tier,
       date: selectedDate,
       startTime: selectedTime,

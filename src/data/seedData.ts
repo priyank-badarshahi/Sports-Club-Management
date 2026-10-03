@@ -2185,6 +2185,7 @@ export const INITIAL_BOOKINGS: Booking[] = [
   {
     id: 'bkg_maint_1',
     courtId: 'court_cricket_2',
+    memberId: 'system_facilities',
     guestName: 'Scheduled Pitch Maintenance',
     guestPhone: 'Club Facilities',
     tier: 'gold',
@@ -2204,6 +2205,7 @@ export const INITIAL_BOOKINGS: Booking[] = [
   {
     id: 'bkg_coach_1',
     courtId: 'court_tennis_1',
+    memberId: 'system_coaching',
     guestName: 'Junior Elite High-Performance Clinic',
     guestPhone: 'Head Coach Somdev',
     tier: 'gold',
@@ -2410,6 +2412,7 @@ export const INITIAL_BOOKINGS: Booking[] = [
   {
     id: 'bkg_tourn_1',
     courtId: 'court_tennis_1',
+    memberId: 'system_tournament',
     guestName: 'Bengaluru Autumn Racquet Invitational',
     guestPhone: 'Tournament Desk',
     tier: 'gold',
@@ -2536,6 +2539,7 @@ export const INITIAL_BOOKINGS: Booking[] = [
   {
     id: 'bkg_trial_1',
     courtId: 'court_tennis_2',
+    memberId: 'lead_trial_sameer',
     guestName: 'Sameer Joshi (Trial)',
     guestPhone: '+91 98450 99882',
     guestEmail: 'sameer.joshi@gmail.com',
