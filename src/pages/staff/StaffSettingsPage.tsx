@@ -23,7 +23,7 @@ import { formatDateTime } from '../../lib/formatters';
 
 export const StaffSettingsPage: React.FC = () => {
   const { settings, updateSettings, auditLogs, resetDemoData, addToast, courts, plans } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'entitlements' | 'booking_rules' | 'taxes_delivery' | 'roles' | 'audit'>('entitlements');
+  const [activeTab, setActiveTab] = useState<'entitlements' | 'booking_rules' | 'taxes_delivery' | 'roles' | 'audit' | 'supabase'>('entitlements');
   const [form, setForm] = useState({ ...settings });
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -147,6 +147,16 @@ export const StaffSettingsPage: React.FC = () => {
           }`}
         >
           Audit Log ({auditLogs.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('supabase')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+            activeTab === 'supabase'
+              ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          Supabase Sync DB
         </button>
       </div>
 
@@ -547,6 +557,257 @@ export const StaffSettingsPage: React.FC = () => {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'supabase' && (
+        <div className="space-y-6">
+          <div className="rounded-3xl bg-slate-900 border border-blue-500/30 p-6 sm:p-8 space-y-6 shadow-xl">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <div>
+                <span className="text-xs text-blue-400 font-bold uppercase tracking-wider">Cloud Database PERSISTENCE</span>
+                <h3 className="font-heading font-bold text-base text-white mt-0.5">Supabase Backend Integration</h3>
+              </div>
+              <span className="px-3 py-1 rounded-full text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-bold">
+                Project Id: sjmmxfprhhmxmdlcogzz
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                <span className="font-bold text-white uppercase text-[11px] block text-blue-400">Database Connection Status</span>
+                <p className="text-slate-400">
+                  Your Champions Club app is pre-configured and connected directly to Supabase Project <code className="text-white bg-slate-900 px-1 py-0.5 rounded font-mono font-semibold">sjmmxfprhhmxmdlcogzz</code>. 
+                </p>
+                <div className="pt-2 flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[11px] text-emerald-400 font-bold">Automatic background sync enabled</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                <span className="font-bold text-white uppercase text-[11px] block text-blue-400">Force Sync Operations</span>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    onClick={async () => {
+                      addToast({ type: 'info', title: 'Syncing', message: 'Uploading all local records to Supabase tables...' });
+                      try {
+                        const { supabaseService } = await import('../../lib/supabase');
+                        const store = useAppStore.getState();
+                        const s1 = await supabaseService.upsertRecords('members', store.members);
+                        const s2 = await supabaseService.upsertRecords('bookings', store.bookings);
+                        const s3 = await supabaseService.upsertRecords('products', store.products);
+                        const s4 = await supabaseService.upsertRecords('orders', store.orders);
+                        const s5 = await supabaseService.upsertRecords('tabs', store.tabs);
+                        const s6 = await supabaseService.upsertRecords('invoices', store.invoices);
+                        const s7 = await supabaseService.upsertRecords('payments', store.payments);
+                        if (s1 && s2 && s3 && s4 && s5 && s6 && s7) {
+                          addToast({ type: 'success', title: 'Supabase Sync Completed', message: 'Successfully upserted all club records to Supabase!' });
+                        } else {
+                          addToast({ type: 'warning', title: 'Sync Warning', message: 'Some tables could not sync. Ensure you created the tables using the schema script below.' });
+                        }
+                      } catch (err) {
+                        addToast({ type: 'error', title: 'Sync Error', message: 'Sync failed.' });
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition"
+                  >
+                    Force Push All Data
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      addToast({ type: 'info', title: 'Fetching', message: 'Downloading active records from Supabase tables...' });
+                      const success = await useAppStore.getState().pullFromSupabase();
+                      if (success) {
+                        addToast({ type: 'success', title: 'Sync Success', message: 'Pulled fresh records from Supabase.' });
+                      } else {
+                        addToast({ type: 'warning', title: 'No Remote Data', message: 'Ensure your Supabase tables are initialized and seeded.' });
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs transition"
+                  >
+                    Force Pull All Data
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-slate-400">Supabase DDL SQL Schema Script</h4>
+                <button
+                  onClick={async () => {
+                    const { supabaseService } = await import('../../lib/supabase');
+                    navigator.clipboard.writeText(supabaseService.getSQLSchemaScript());
+                    addToast({ type: 'success', title: 'Copied SQL Schema', message: 'Pasted schema script into clipboard.' });
+                  }}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-bold hover:underline"
+                >
+                  Copy Schema Script
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80">
+                <pre className="text-[10px] font-mono text-slate-400 overflow-x-auto max-h-80 leading-relaxed pr-1 select-all whitespace-pre-wrap">
+                  {`CREATE TABLE IF NOT EXISTS members (
+  id TEXT PRIMARY KEY,
+  "fullName" TEXT NOT NULL,
+  phone TEXT,
+  email TEXT,
+  avatar TEXT,
+  tier TEXT DEFAULT 'walk_in',
+  status TEXT DEFAULT 'active',
+  "expiryDate" TEXT,
+  "walletBalance" NUMERIC DEFAULT 0,
+  "activeTabBalance" NUMERIC DEFAULT 0,
+  "emergencyContact" JSONB,
+  notes TEXT,
+  "joinDate" TEXT,
+  "memberNumber" TEXT,
+  "attendanceLog" JSONB DEFAULT '[]'::jsonb,
+  "reminderLog" JSONB DEFAULT '[]'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS bookings (
+  id TEXT PRIMARY KEY,
+  "courtId" TEXT NOT NULL,
+  "memberId" TEXT,
+  "guestName" TEXT,
+  "guestPhone" TEXT,
+  "guestEmail" TEXT,
+  tier TEXT,
+  date TEXT NOT NULL,
+  "startTime" TEXT NOT NULL,
+  "endTime" TEXT NOT NULL,
+  sport TEXT,
+  "bookingType" TEXT,
+  channel TEXT,
+  "totalPrice" NUMERIC DEFAULT 0,
+  "discountApplied" NUMERIC DEFAULT 0,
+  "priceBreakdown" JSONB,
+  status TEXT DEFAULT 'confirmed',
+  "isPaid" BOOLEAN DEFAULT false,
+  "paymentMethod" TEXT,
+  notes TEXT,
+  "createdAt" TEXT,
+  "cancelledAt" TEXT,
+  "cancellationReason" TEXT,
+  "lateCancelFee" NUMERIC,
+  "refundAmount" NUMERIC,
+  "qrCodeData" TEXT,
+  "isRecurring" BOOLEAN DEFAULT false,
+  "recurringGroupId" TEXT
+);
+
+CREATE TABLE IF NOT EXISTS products (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  sku TEXT UNIQUE NOT NULL,
+  brand TEXT,
+  category TEXT,
+  price NUMERIC DEFAULT 0,
+  "costPrice" NUMERIC DEFAULT 0,
+  "stockQty" INTEGER DEFAULT 0,
+  "reservedQty" INTEGER DEFAULT 0,
+  "reorderLevel" INTEGER DEFAULT 5,
+  "isServiceItem" BOOLEAN DEFAULT false,
+  image TEXT,
+  "serviceOptions" JSONB,
+  "sizeVariants" JSONB,
+  "stringTensionRange" TEXT
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+  id TEXT PRIMARY KEY,
+  "orderNumber" TEXT UNIQUE NOT NULL,
+  "memberId" TEXT,
+  "customerName" TEXT,
+  items JSONB DEFAULT '[]'::jsonb,
+  "totalAmount" NUMERIC DEFAULT 0,
+  "discountAmount" NUMERIC DEFAULT 0,
+  "gstAmount" NUMERIC DEFAULT 0,
+  "isPaid" BOOLEAN DEFAULT false,
+  "paymentMethod" TEXT,
+  status TEXT DEFAULT 'placed',
+  "trackingEvents" JSONB DEFAULT '[]'::jsonb,
+  "createdAt" TEXT,
+  "updatedAt" TEXT,
+  "serviceConfig" JSONB
+);
+
+CREATE TABLE IF NOT EXISTS tabs (
+  id TEXT PRIMARY KEY,
+  "tabNumber" TEXT UNIQUE NOT NULL,
+  "memberId" TEXT,
+  "customerName" TEXT NOT NULL,
+  tier TEXT,
+  "tableId" TEXT,
+  "tableName" TEXT,
+  "partySize" INTEGER DEFAULT 2,
+  orders JSONB DEFAULT '[]'::jsonb,
+  subtotal NUMERIC DEFAULT 0,
+  "discountAmount" NUMERIC DEFAULT 0,
+  "happyHourDiscount" NUMERIC DEFAULT 0,
+  "gstAmount" NUMERIC DEFAULT 0,
+  "totalAmount" NUMERIC DEFAULT 0,
+  "tipAmount" NUMERIC DEFAULT 0,
+  "tabLimit" NUMERIC DEFAULT 0,
+  status TEXT DEFAULT 'open',
+  "openedAt" TEXT,
+  "closedAt" TEXT,
+  "settledVia" TEXT,
+  "serverName" TEXT,
+  "splitDetails" JSONB
+);
+
+CREATE TABLE IF NOT EXISTS invoices (
+  id TEXT PRIMARY KEY,
+  "invoiceNumber" TEXT UNIQUE NOT NULL,
+  "memberId" TEXT,
+  "recipientName" TEXT NOT NULL,
+  "recipientEmail" TEXT,
+  "recipientPhone" TEXT,
+  "recipientGst" TEXT,
+  category TEXT DEFAULT 'court_rental',
+  items JSONB DEFAULT '[]'::jsonb,
+  subtotal NUMERIC DEFAULT 0,
+  "gstRate" NUMERIC DEFAULT 0.18,
+  "gstAmount" NUMERIC DEFAULT 0,
+  "totalAmount" NUMERIC DEFAULT 0,
+  "paidAmount" NUMERIC DEFAULT 0,
+  "balanceAmount" NUMERIC DEFAULT 0,
+  "creditNoteAmount" NUMERIC DEFAULT 0,
+  status TEXT DEFAULT 'unpaid',
+  "dueDate" TEXT,
+  "paidAt" TEXT,
+  "paymentMethod" TEXT,
+  "createdAt" TEXT,
+  stream TEXT,
+  reminders JSONB DEFAULT '[]'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+  id TEXT PRIMARY KEY,
+  "paymentNumber" TEXT UNIQUE NOT NULL,
+  "invoiceId" TEXT,
+  "memberId" TEXT,
+  "payerName" TEXT,
+  amount NUMERIC DEFAULT 0,
+  method TEXT,
+  status TEXT DEFAULT 'success',
+  "transactionRef" TEXT,
+  timestamp TEXT,
+  purpose TEXT,
+  stream TEXT
+);`}
+                </pre>
+              </div>
+              <p className="text-[11px] text-slate-500 italic">
+                * Note: Paste the script above directly into your Supabase SQL Editor and execute it to support immediate live cloud persistent storage of active club records!
+              </p>
             </div>
           </div>
         </div>

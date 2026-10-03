@@ -334,6 +334,7 @@ interface AppState {
   setCurrentUser: (user: UserProfile) => void;
   resetDemoData: () => void;
   updateSettings: (newSettings: Partial<ClubSettings>) => void;
+  pullFromSupabase: () => Promise<boolean>;
 }
 
 const loadSavedState = () => {
@@ -430,6 +431,77 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   removeToast: (id) => {
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
+  },
+
+  pullFromSupabase: async () => {
+    try {
+      const { supabaseService } = await import('../lib/supabase');
+      
+      const members = await supabaseService.fetchRecords<Member>('members');
+      const bookings = await supabaseService.fetchRecords<Booking>('bookings');
+      const products = await supabaseService.fetchRecords<Product>('products');
+      const orders = await supabaseService.fetchRecords<Order>('orders');
+      const tabs = await supabaseService.fetchRecords<Tab>('tabs');
+      const invoices = await supabaseService.fetchRecords<Invoice>('invoices');
+      const payments = await supabaseService.fetchRecords<Payment>('payments');
+
+      // Additional UI workflow tables
+      const socialSessions = await supabaseService.fetchRecords<any>('social_sessions');
+      const stockMovements = await supabaseService.fetchRecords<any>('stock_movements');
+      const menuItems = await supabaseService.fetchRecords<any>('menu_items');
+      const tables = await supabaseService.fetchRecords<any>('tables');
+      const leads = await supabaseService.fetchRecords<any>('leads');
+      const quotes = await supabaseService.fetchRecords<any>('quotes');
+      const businessClients = await supabaseService.fetchRecords<any>('business_clients');
+      const creditNotes = await supabaseService.fetchRecords<any>('credit_notes');
+      const expenses = await supabaseService.fetchRecords<any>('expenses');
+      const employees = await supabaseService.fetchRecords<any>('employees');
+      const shifts = await supabaseService.fetchRecords<any>('shifts');
+      const swapRequests = await supabaseService.fetchRecords<any>('swap_requests');
+      const attendance = await supabaseService.fetchRecords<any>('attendance');
+      const leaves = await supabaseService.fetchRecords<any>('leaves');
+      const payroll = await supabaseService.fetchRecords<any>('payroll');
+      const notifications = await supabaseService.fetchRecords<any>('notifications');
+      const auditLogs = await supabaseService.fetchRecords<any>('audit_logs');
+      const settings = await supabaseService.fetchRecords<any>('settings');
+
+      const updates: any = {};
+      if (members && members.length > 0) updates.members = members;
+      if (bookings && bookings.length > 0) updates.bookings = bookings;
+      if (products && products.length > 0) updates.products = products;
+      if (orders && orders.length > 0) updates.orders = orders;
+      if (tabs && tabs.length > 0) updates.tabs = tabs;
+      if (invoices && invoices.length > 0) updates.invoices = invoices;
+      if (payments && payments.length > 0) updates.payments = payments;
+
+      if (socialSessions && socialSessions.length > 0) updates.socialSessions = socialSessions;
+      if (stockMovements && stockMovements.length > 0) updates.stockMovements = stockMovements;
+      if (menuItems && menuItems.length > 0) updates.menuItems = menuItems;
+      if (tables && tables.length > 0) updates.tables = tables;
+      if (leads && leads.length > 0) updates.leads = leads;
+      if (quotes && quotes.length > 0) updates.quotes = quotes;
+      if (businessClients && businessClients.length > 0) updates.businessClients = businessClients;
+      if (creditNotes && creditNotes.length > 0) updates.creditNotes = creditNotes;
+      if (expenses && expenses.length > 0) updates.expenses = expenses;
+      if (employees && employees.length > 0) updates.employees = employees;
+      if (shifts && shifts.length > 0) updates.shifts = shifts;
+      if (swapRequests && swapRequests.length > 0) updates.swapRequests = swapRequests;
+      if (attendance && attendance.length > 0) updates.attendance = attendance;
+      if (leaves && leaves.length > 0) updates.leaves = leaves;
+      if (payroll && payroll.length > 0) updates.payroll = payroll;
+      if (notifications && notifications.length > 0) updates.notifications = notifications;
+      if (auditLogs && auditLogs.length > 0) updates.auditLogs = auditLogs;
+      if (settings && settings.length > 0) updates.settings = settings[0]; // settings is a singleton
+
+      if (Object.keys(updates).length > 0) {
+        set(updates);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.warn('Supabase automatic pull deferred:', e);
+      return false;
+    }
   },
 
   addBooking: (bookingData) => {
@@ -4237,6 +4309,40 @@ function persist(state: AppState) {
       settings: state.settings,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+
+    // Asynchronously update Supabase in the background
+    import('../lib/supabase').then(({ supabaseService }) => {
+      supabaseService.upsertRecords('members', state.members);
+      supabaseService.upsertRecords('bookings', state.bookings);
+      supabaseService.upsertRecords('products', state.products);
+      supabaseService.upsertRecords('orders', state.orders);
+      supabaseService.upsertRecords('tabs', state.tabs);
+      supabaseService.upsertRecords('invoices', state.invoices);
+      supabaseService.upsertRecords('payments', state.payments);
+
+      // Additional UI workflows and logs
+      supabaseService.upsertRecords('social_sessions', state.socialSessions);
+      supabaseService.upsertRecords('stock_movements', state.stockMovements);
+      supabaseService.upsertRecords('menu_items', state.menuItems);
+      supabaseService.upsertRecords('tables', state.tables);
+      supabaseService.upsertRecords('leads', state.leads);
+      supabaseService.upsertRecords('quotes', state.quotes);
+      supabaseService.upsertRecords('business_clients', state.businessClients);
+      supabaseService.upsertRecords('credit_notes', state.creditNotes);
+      supabaseService.upsertRecords('expenses', state.expenses);
+      supabaseService.upsertRecords('employees', state.employees);
+      supabaseService.upsertRecords('shifts', state.shifts);
+      supabaseService.upsertRecords('swap_requests', state.swapRequests);
+      supabaseService.upsertRecords('attendance', state.attendance);
+      supabaseService.upsertRecords('leaves', state.leaves);
+      supabaseService.upsertRecords('payroll', state.payroll);
+      supabaseService.upsertRecords('notifications', state.notifications);
+      supabaseService.upsertRecords('audit_logs', state.auditLogs);
+      supabaseService.upsertRecords('settings', [state.settings]); // singleton array
+    }).catch(err => {
+      console.warn('Supabase sync deferred:', err);
+    });
+
   } catch (e) {
     console.error('Failed to save to localStorage:', e);
   }
