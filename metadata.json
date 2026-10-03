@@ -1,6 +1,6 @@
 {
-  "name": "Champions Club",
-  "description": "Unified Sports Club Management ERP & Member Platform for court booking, shop, cafeteria POS, CRM, and club operations.",
+  "name": "Champions Club - Sports Club Management",
+  "description": "Premium Sports Club Management System for Tennis, Padel, Badminton, and Cricket Nets with court bookings, gear shop, bar & café tabs, memberships, and staff operations.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
