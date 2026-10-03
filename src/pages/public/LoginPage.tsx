@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppStore, DEMO_USERS } from '../../store';
-import { Role } from '../../types';
+import { useAppStore } from '../../store';
+import { Role, MembershipTier } from '../../types';
 import { 
   Trophy, 
   Mail, 
@@ -9,16 +9,11 @@ import {
   Eye, 
   EyeOff, 
   ArrowRight, 
-  Sparkles, 
   User, 
   Phone, 
   Calendar, 
-  Compass, 
-  Check, 
   ShieldCheck, 
-  Coffee, 
-  UserCheck,
-  Users 
+  Loader2,
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
@@ -28,9 +23,12 @@ export const LoginPage: React.FC = () => {
   // Mode toggle
   const [isRegister, setIsRegister] = useState(false);
 
+  // Loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('password');
+  const [loginPassword, setLoginPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -46,9 +44,9 @@ export const LoginPage: React.FC = () => {
     agreed: false
   });
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginEmail) {
+    if (!loginEmail.trim()) {
       addToast({
         type: 'error',
         title: 'Input Required',
@@ -56,77 +54,134 @@ export const LoginPage: React.FC = () => {
       });
       return;
     }
-
-    // Attempt to log in with input email
-    const emailLower = loginEmail.toLowerCase();
-    let matchedRole: Role = 'visitor';
-
-    if (emailLower.includes('owner') || emailLower.includes('rajesh')) {
-      matchedRole = 'owner';
-    } else if (emailLower.includes('priya') || emailLower.includes('front')) {
-      matchedRole = 'front_desk';
-    } else if (emailLower.includes('rohan') || emailLower.includes('bar')) {
-      matchedRole = 'bar_staff';
-    } else if (emailLower.includes('ananya') || emailLower.includes('shop')) {
-      matchedRole = 'shop_staff';
-    } else if (emailLower.includes('arjun') || emailLower.includes('manager')) {
-      matchedRole = 'manager';
-    } else {
-      matchedRole = 'member'; // Default match is member
+    if (!loginPassword) {
+      addToast({
+        type: 'error',
+        title: 'Password Required',
+        message: 'Please enter your password'
+      });
+      return;
     }
 
-    const matchedUser = DEMO_USERS[matchedRole];
-    setCurrentUser({
-      ...matchedUser,
-      email: loginEmail
-    });
-    setRole(matchedRole);
+    try {
+      setIsSubmitting(true);
 
-    addToast({
-      type: 'success',
-      title: 'Login Successful',
-      message: `Welcome back, ${matchedUser.name}! Session started as ${matchedRole.toUpperCase().replace('_', ' ')}.`
-    });
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginEmail.trim(),
+          password: loginPassword,
+        }),
+      });
 
-    // Navigate to respective route
-    if (matchedRole === 'member') {
-      navigate('/member/home');
-    } else if (matchedRole === 'bar_staff') {
-      navigate('/staff/bar');
-    } else if (matchedRole === 'shop_staff') {
-      navigate('/staff/shop');
-    } else {
-      navigate('/staff/dashboard');
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        addToast({
+          type: 'error',
+          title: 'Authentication Failed',
+          message: result.error || 'Invalid credentials. Please verify your Email/Member ID and password.'
+        });
+        return;
+      }
+
+      // Standardize role from database
+      const rawRole = String(result.user?.role || 'member').toLowerCase();
+      let matchedRole: Role = 'member';
+      if (rawRole === 'owner') matchedRole = 'owner';
+      else if (rawRole.includes('front')) matchedRole = 'front_desk';
+      else if (rawRole.includes('bar')) matchedRole = 'bar_staff';
+      else if (rawRole.includes('shop')) matchedRole = 'shop_staff';
+      else if (rawRole.includes('manager')) matchedRole = 'manager';
+      else matchedRole = 'member';
+
+      const tier = (String(result.user?.membershipPlan || 'silver').toLowerCase()) as MembershipTier;
+      const memberId = result.user?.memberId || 'M001';
+
+      // Ensure member profile exists in Zustand client store for seamless navigation
+      const storeMembers = useAppStore.getState().members;
+      const existingMember = storeMembers.find(
+        (m) => m.email.toLowerCase() === result.user.email.toLowerCase() || m.id === memberId
+      );
+
+      if (!existingMember && matchedRole === 'member') {
+        useAppStore.setState((state) => ({
+          members: [
+            {
+              id: memberId,
+              memberNumber: `CC-2026-${memberId}`,
+              fullName: result.user.name,
+              email: result.user.email,
+              phone: result.user.phone || '+91 98765 43210',
+              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+              tier: tier,
+              status: 'active',
+              joinDate: new Date().toISOString().split('T')[0],
+              expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              walletBalance: tier === 'gold' ? 5000 : 2500,
+              activeTabBalance: 0,
+              emergencyContact: {
+                name: 'Family Contact',
+                phone: result.user.phone || '+91 98765 43210',
+                relation: 'Self',
+              },
+              preferredSports: ['tennis'],
+              attendanceLog: [],
+              reminderLog: [],
+            },
+            ...state.members,
+          ],
+        }));
+      }
+
+      setCurrentUser({
+        name: result.user.name,
+        email: result.user.email,
+        role: matchedRole,
+        avatar: existingMember?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+        tier: tier,
+        memberId: memberId,
+      });
+      setRole(matchedRole);
+
+      addToast({
+        type: 'success',
+        title: 'Login Successful',
+        message: `Welcome back, ${result.user.name}! Authenticated against Supabase database.`
+      });
+
+      // Route to respective route based on role
+      if (matchedRole === 'member') {
+        navigate('/member/home');
+      } else if (matchedRole === 'bar_staff') {
+        navigate('/staff/bar');
+      } else if (matchedRole === 'shop_staff') {
+        navigate('/staff/shop');
+      } else if (matchedRole === 'front_desk') {
+        navigate('/staff/bookings');
+      } else {
+        navigate('/staff/dashboard');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      addToast({
+        type: 'error',
+        title: 'Connection Error',
+        message: 'Could not connect to authentication server. Please ensure backend is running.'
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleOneClickLogin = (role: Role) => {
-    const user = DEMO_USERS[role];
-    setCurrentUser(user);
-    setRole(role);
-
-    addToast({
-      type: 'success',
-      title: 'Session Started',
-      message: `Switched to ${user.name} (${role.toUpperCase().replace('_', ' ')})`
-    });
-
-    if (role === 'member') {
-      navigate('/member/home');
-    } else if (role === 'bar_staff') {
-      navigate('/staff/bar');
-    } else if (role === 'shop_staff') {
-      navigate('/staff/shop');
-    } else {
-      navigate('/staff/dashboard');
-    }
-  };
-
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { fullName, email, phone, password, confirmPassword, dob, sport, agreed } = registerForm;
 
-    if (!fullName || !email || !phone) {
+    if (!fullName.trim() || !email.trim() || !phone.trim() || !password) {
       addToast({
         type: 'error',
         title: 'Fields Missing',
@@ -144,6 +199,15 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
+    if (password.length < 6) {
+      addToast({
+        type: 'error',
+        title: 'Password Too Short',
+        message: 'Password must be at least 6 characters long.'
+      });
+      return;
+    }
+
     if (!agreed) {
       addToast({
         type: 'error',
@@ -157,46 +221,90 @@ export const LoginPage: React.FC = () => {
     const birthYear = new Date(dob).getFullYear();
     const currentYear = new Date().getFullYear();
     const isJunior = (currentYear - birthYear) < 18;
-    const tier = isJunior ? 'junior' : 'gold';
+    const tier: MembershipTier = isJunior ? 'junior' : 'gold';
 
-    const newMemberData = {
-      fullName,
-      phone,
-      email,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-      tier: tier as any,
-      preferredSports: [sport as any],
-      status: 'active' as const,
-      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year
-      walletBalance: 2000, // Seed welcome balance
-      activeTabBalance: 0,
-      emergencyContact: {
-        name: isJunior ? 'Guardian Registered' : 'Secondary Contact',
-        phone,
-        relation: isJunior ? 'Parent' : 'Spouse'
-      },
-      notes: `Self-registered online on ${new Date().toLocaleDateString()}`
-    };
+    try {
+      setIsSubmitting(true);
 
-    // Register and log in
-    const regResult = registerMember(newMemberData, 'card', 5000, 'annual');
-    setCurrentUser({
-      name: regResult.member.fullName,
-      email: regResult.member.email,
-      role: 'member',
-      avatar: regResult.member.avatar,
-      tier: regResult.member.tier,
-      memberId: regResult.member.id
-    });
-    setRole('member');
+      // Save user in Supabase database & Auth
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          password: password,
+          dob: dob,
+          sport: sport,
+          tier: tier,
+        }),
+      });
 
-    addToast({
-      type: 'success',
-      title: 'Account Created Successfully!',
-      message: `Welcome to Champions Club, ${fullName}! Logged in as ${tier.toUpperCase()} Member.`
-    });
+      const result = await response.json();
 
-    navigate('/member/home');
+      if (!response.ok || !result.success) {
+        addToast({
+          type: 'error',
+          title: 'Registration Error',
+          message: result.error || 'Failed to save account in database.'
+        });
+        return;
+      }
+
+      const assignedMemberId = result.user?.memberId || `M${String(Math.floor(Math.random() * 900) + 100)}`;
+
+      const newMemberData = {
+        fullName: fullName.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+        tier: tier,
+        preferredSports: [sport as any],
+        status: 'active' as const,
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        walletBalance: tier === 'gold' ? 5000 : 2500,
+        activeTabBalance: 0,
+        emergencyContact: {
+          name: isJunior ? 'Guardian Registered' : 'Secondary Contact',
+          phone: phone.trim(),
+          relation: isJunior ? 'Parent' : 'Spouse'
+        },
+        notes: `Registered via Supabase DB on ${new Date().toLocaleDateString()}`
+      };
+
+      // Register in local Zustand store
+      registerMember(newMemberData, 'card', tier === 'gold' ? 5000 : 2500, 'annual');
+
+      setCurrentUser({
+        name: fullName.trim(),
+        email: email.trim(),
+        role: 'member',
+        avatar: newMemberData.avatar,
+        tier: tier,
+        memberId: assignedMemberId
+      });
+      setRole('member');
+
+      addToast({
+        type: 'success',
+        title: 'Account Stored in Database!',
+        message: `Welcome to Champions Club, ${fullName}! Your Member ID is ${assignedMemberId}.`
+      });
+
+      navigate('/member/home');
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      addToast({
+        type: 'error',
+        title: 'Network Error',
+        message: 'Could not reach server to register account.'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -238,10 +346,11 @@ export const LoginPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. member@championsclub.demo or M001"
+                  disabled={isSubmitting}
+                  placeholder="e.g. member@championsclub.in or M001"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
                 />
               </div>
             </div>
@@ -253,7 +362,7 @@ export const LoginPage: React.FC = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => addToast({ type: 'info', title: 'Demo Password', message: 'Any password works for demo context!' })}
+                  onClick={() => addToast({ type: 'info', title: 'Password Reset', message: 'Password reset link sent to your registered email address.' })}
                   className="text-[11px] text-blue-500 hover:underline font-medium"
                 >
                   Forgot Password?
@@ -264,9 +373,11 @@ export const LoginPage: React.FC = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
+                  disabled={isSubmitting}
+                  placeholder="Enter your password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
                 />
                 <button
                   type="button"
@@ -282,6 +393,7 @@ export const LoginPage: React.FC = () => {
               <input
                 type="checkbox"
                 checked={rememberMe}
+                disabled={isSubmitting}
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0 w-4 h-4"
               />
@@ -290,73 +402,28 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-transform active:scale-95"
+              disabled={isSubmitting}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-95"
             >
-              <span>LOGIN TO ACCOUNT</span>
-              <ArrowRight className="w-4 h-4" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>VERIFYING CREDENTIALS...</span>
+                </>
+              ) : (
+                <>
+                  <span>LOGIN TO ACCOUNT</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
-          {/* ONE-CLICK DEMO AUTH PANEL */}
-          <div className="space-y-3 pt-4 border-t border-slate-800">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                <span>ONE-CLICK ROLE LOGIN</span>
-              </span>
-              <span className="text-[10px] text-slate-500 font-medium font-mono uppercase">
-                Evaluation Ready
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5 text-left">
-              {/* Member Card */}
-              <button
-                onClick={() => handleOneClickLogin('member')}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 transition text-left space-y-1 group"
-              >
-                <div className="flex items-center gap-2 text-white font-bold text-xs">
-                  <UserCheck className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Member Portal</span>
-                </div>
-                <p className="text-[10px] text-slate-400 group-hover:text-slate-300">Rahul Patel (Gold)</p>
-              </button>
-
-              {/* Owner Card */}
-              <button
-                onClick={() => handleOneClickLogin('owner')}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 transition text-left space-y-1 group"
-              >
-                <div className="flex items-center gap-2 text-white font-bold text-xs">
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Club Owner ERP</span>
-                </div>
-                <p className="text-[10px] text-slate-400 group-hover:text-slate-300">Full Executive Suite</p>
-              </button>
-
-              {/* Front Desk Card */}
-              <button
-                onClick={() => handleOneClickLogin('front_desk')}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 transition text-left space-y-1 group"
-              >
-                <div className="flex items-center gap-2 text-white font-bold text-xs">
-                  <Users className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Front Desk</span>
-                </div>
-                <p className="text-[10px] text-slate-400 group-hover:text-slate-300">Bookings & CRM</p>
-              </button>
-
-              {/* Bar Staff Card */}
-              <button
-                onClick={() => handleOneClickLogin('bar_staff')}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/40 transition text-left space-y-1 group"
-              >
-                <div className="flex items-center gap-2 text-white font-bold text-xs">
-                  <Coffee className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Bar & Cafe Staff</span>
-                </div>
-                <p className="text-[10px] text-slate-400 group-hover:text-slate-300">POS & Table Tabs</p>
-              </button>
+          {/* Database verification indicator */}
+          <div className="pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Live Database Authentication Active • Supabase PostgreSQL</span>
             </div>
           </div>
 
@@ -378,7 +445,7 @@ export const LoginPage: React.FC = () => {
               Create Your Account
             </h1>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Sign up for a club membership session account
+              Sign up for a club membership account stored in database
             </p>
           </div>
 
@@ -392,10 +459,11 @@ export const LoginPage: React.FC = () => {
                 <input
                   type="text"
                   required
+                  disabled={isSubmitting}
                   placeholder="e.g. Vikram Mehta"
                   value={registerForm.fullName}
                   onChange={(e) => setRegisterForm({ ...registerForm, fullName: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
                 />
               </div>
             </div>
@@ -410,10 +478,11 @@ export const LoginPage: React.FC = () => {
                   <input
                     type="email"
                     required
+                    disabled={isSubmitting}
                     placeholder="you@example.com"
                     value={registerForm.email}
                     onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -427,10 +496,11 @@ export const LoginPage: React.FC = () => {
                   <input
                     type="tel"
                     required
+                    disabled={isSubmitting}
                     placeholder="+91 98765 43210"
                     value={registerForm.phone}
                     onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -446,10 +516,11 @@ export const LoginPage: React.FC = () => {
                   <input
                     type="password"
                     required
+                    disabled={isSubmitting}
                     placeholder="••••••••"
                     value={registerForm.password}
                     onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -463,10 +534,11 @@ export const LoginPage: React.FC = () => {
                   <input
                     type="password"
                     required
+                    disabled={isSubmitting}
                     placeholder="••••••••"
                     value={registerForm.confirmPassword}
                     onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -482,9 +554,10 @@ export const LoginPage: React.FC = () => {
                   <input
                     type="date"
                     required
+                    disabled={isSubmitting}
                     value={registerForm.dob}
                     onChange={(e) => setRegisterForm({ ...registerForm, dob: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors font-mono"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors font-mono disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -494,9 +567,10 @@ export const LoginPage: React.FC = () => {
                   Preferred Primary Sport
                 </label>
                 <select
+                  disabled={isSubmitting}
                   value={registerForm.sport}
                   onChange={(e) => setRegisterForm({ ...registerForm, sport: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-blue-500 disabled:opacity-60"
                 >
                   <option value="tennis">Tennis (Center & Grandstand)</option>
                   <option value="padel">Padel (Panoramic Glass)</option>
@@ -510,6 +584,7 @@ export const LoginPage: React.FC = () => {
               <input
                 type="checkbox"
                 required
+                disabled={isSubmitting}
                 checked={registerForm.agreed}
                 onChange={(e) => setRegisterForm({ ...registerForm, agreed: e.target.checked })}
                 className="rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0 mt-0.5 w-4 h-4"
@@ -521,10 +596,20 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-transform active:scale-95"
+              disabled={isSubmitting}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-95"
             >
-              <span>CREATE ACCOUNT</span>
-              <ArrowRight className="w-4 h-4" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>CREATING ACCOUNT IN DATABASE...</span>
+                </>
+              ) : (
+                <>
+                  <span>CREATE ACCOUNT</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 

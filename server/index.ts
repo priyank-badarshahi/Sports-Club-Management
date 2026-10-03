@@ -30,16 +30,29 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
   try {
     const {
       name,
+      fullName,
       email,
       phone,
       password,
       dateOfBirth,
+      dob,
       preferredSport,
-      plan = 'Silver',
+      sport,
+      plan,
+      tier,
     } = req.body;
 
+    const resolvedName = (fullName || name || '').trim();
+    const resolvedEmail = (email || '').trim().toLowerCase();
+    const resolvedPhone = (phone || '').trim();
+    const resolvedPassword = password;
+    const resolvedDob = dateOfBirth || dob || '2000-01-15';
+    const resolvedSport = preferredSport || sport || 'Tennis';
+    const rawPlan = String(plan || tier || 'Silver').toLowerCase();
+    const resolvedPlan = rawPlan === 'gold' ? 'Gold' : rawPlan === 'junior' ? 'Junior' : 'Silver';
+
     // Validate inputs
-    if (!name || !email || !phone || !password) {
+    if (!resolvedName || !resolvedEmail || !resolvedPhone || !resolvedPassword) {
       res.status(400).json({
         success: false,
         error: 'Name, email, phone, and password are required fields.',
@@ -47,15 +60,15 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPhone = phone.trim();
+    const cleanEmail = resolvedEmail;
+    const cleanPhone = resolvedPhone;
     const todayStr = new Date().toISOString().split('T')[0];
     const expiryDateObj = new Date();
     expiryDateObj.setFullYear(expiryDateObj.getFullYear() + 1);
     const expiryStr = expiryDateObj.toISOString().split('T')[0];
 
-    const discountRate = plan === 'Gold' ? 0.20 : plan === 'Junior' ? 0.15 : 0.10;
-    const initialSpent = plan === 'Gold' ? 45000 : plan === 'Silver' ? 28000 : 22000;
+    const discountRate = resolvedPlan === 'Gold' ? 0.20 : resolvedPlan === 'Junior' ? 0.15 : 0.10;
+    const initialSpent = resolvedPlan === 'Gold' ? 45000 : resolvedPlan === 'Silver' ? 28000 : 22000;
 
     // If Supabase is configured with valid credentials
     if (isSupabaseConfigured) {
@@ -68,10 +81,10 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
           password: String(password),
           email_confirm: true,
           user_metadata: {
-            name,
+            name: resolvedName,
             phone: cleanPhone,
-            dateOfBirth: dateOfBirth || '2000-01-15',
-            preferredSport: preferredSport || 'Tennis',
+            dateOfBirth: resolvedDob,
+            preferredSport: resolvedSport,
             role: 'member',
           },
         });
@@ -139,12 +152,12 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
         .from('profiles')
         .upsert({
           id: userId,
-          name,
+          name: resolvedName,
           email: cleanEmail,
           role: 'member',
           phone: cleanPhone,
           member_id: memberId,
-          membership_plan: plan,
+          membership_plan: resolvedPlan,
         });
 
       if (profileError) {
@@ -160,11 +173,11 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
       const memberPayload = {
         member_id: memberId,
         user_id: userId,
-        name,
+        name: resolvedName,
         email: cleanEmail,
         phone: cleanPhone,
-        date_of_birth: dateOfBirth || '2000-01-15',
-        plan,
+        date_of_birth: resolvedDob,
+        plan: resolvedPlan,
         start_date: todayStr,
         expiry_date: expiryStr,
         status: 'active',
@@ -195,12 +208,12 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
         message: 'Account registered and saved in Supabase database!',
         user: {
           id: userId,
-          name,
+          name: resolvedName,
           email: cleanEmail,
           phone: cleanPhone,
           role: 'member',
           memberId,
-          membershipPlan: plan,
+          membershipPlan: resolvedPlan,
         },
         member: memberData,
       });
@@ -216,21 +229,21 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
       notice: 'Supabase credentials not configured in .env yet. Mock member profile generated.',
       user: {
         id: `usr_${Date.now()}`,
-        name,
+        name: resolvedName,
         email: cleanEmail,
-        phone,
+        phone: cleanPhone,
         role: 'member',
         memberId: fallbackMemberId,
-        membershipPlan: plan,
+        membershipPlan: resolvedPlan,
       },
       member: {
         id: `mem_${Date.now()}`,
         memberId: fallbackMemberId,
-        name,
+        name: resolvedName,
         email: cleanEmail,
-        phone,
-        plan,
-        dateOfBirth: dateOfBirth || '2000-01-01',
+        phone: cleanPhone,
+        plan: resolvedPlan,
+        dateOfBirth: resolvedDob,
         startDate: todayStr,
         expiryDate: expiryStr,
         status: 'active',
@@ -239,6 +252,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
         totalSpent: initialSpent,
       },
     });
+
   } catch (err: any) {
     console.error('❌ Server error during signup:', err);
     res.status(500).json({
@@ -303,7 +317,15 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
           .or(`user_id.eq.${userId},email.eq.${targetEmail}`)
           .maybeSingle();
 
-        const role = profile?.role || authData.user.user_metadata?.role || 'member';
+        const rawRole = String(profile?.role || authData.user.user_metadata?.role || 'member').toLowerCase();
+        const role =
+          rawRole === 'owner' ? 'owner' :
+          rawRole.includes('front') ? 'front_desk' :
+          rawRole.includes('bar') ? 'bar_staff' :
+          rawRole.includes('shop') ? 'shop_staff' :
+          rawRole.includes('manager') ? 'manager' :
+          'member';
+
         const name = profile?.name || member?.name || authData.user.user_metadata?.name || targetEmail.split('@')[0];
         const memberId = profile?.member_id || member?.member_id || 'M001';
         const membershipPlan = profile?.membership_plan || member?.plan || 'Silver';
@@ -331,10 +353,15 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
       // If standard Supabase login failed, check staff demo fallback accounts for admin evaluation
       const DEMO_STAFF_MAP: Record<string, { role: string; name: string }> = {
         'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania' },
-        'frontdesk@championsclub.demo': { role: 'frontdesk', name: 'Ananya Sharma' },
-        'shop@championsclub.demo': { role: 'shop', name: 'Karan Mehra' },
-        'bar@championsclub.demo': { role: 'bar', name: 'Chef Amit Roy' },
+        'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania' },
+        'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma' },
+        'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma' },
+        'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra' },
+        'ananya.shop@championsclub.in': { role: 'shop_staff', name: 'Ananya Sen' },
+        'bar@championsclub.demo': { role: 'bar_staff', name: 'Chef Amit Roy' },
+        'rohan.bar@championsclub.in': { role: 'bar_staff', name: 'Rohan Das' },
         'manager@championsclub.demo': { role: 'manager', name: 'Sanjay Verma' },
+        'arjun.manager@championsclub.in': { role: 'manager', name: 'Arjun Rao' },
       };
 
       if (DEMO_STAFF_MAP[cleanIdentifier]) {
