@@ -15,15 +15,17 @@ import {
   CreditCard, 
   Zap, 
   QrCode, 
-  CheckCircle2,
-  DollarSign
+  Lock,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import { generateTimeSlots, calculateEndTime } from '../../lib/booking';
 import { formatINR } from '../../lib/formatters';
 
 export const BookTrialPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { courts, addBooking, addLead } = useAppStore();
+  const { courts, addBooking, addLead, currentRole, currentUser } = useAppStore();
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
 
   const prefillSport = (searchParams.get('sport') as SportType) || 'padel';
   const prefillDate = searchParams.get('date') || '2026-10-05';
@@ -71,6 +73,10 @@ export const BookTrialPage: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentRole === 'visitor' || currentUser.role === 'visitor') {
+      setAuthPromptOpen(true);
+      return;
+    }
     if (!formData.fullName || !formData.phone || !formData.email) return;
 
     // 1. Find suitable court for trial booking
@@ -414,6 +420,51 @@ export const BookTrialPage: React.FC = () => {
             >
               View Court Grid
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* AUTH REQUIRED MODAL FOR TRIAL SESSIONS */}
+      {authPromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mx-auto">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+                Sign In Required
+              </span>
+              <h3 className="font-heading font-extrabold text-2xl text-white">
+                Log In or Sign Up to Book Trial
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300">
+                To confirm your complimentary VIP trial slot and receive your digital entrance pass, please log in or create a Champions Club account.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <Link
+                to="/login?redirect=/book-trial"
+                className="w-full py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs shadow-md shadow-lime-400/20 transition flex items-center justify-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Log In to Your Account</span>
+              </Link>
+              <Link
+                to="/login?register=true&redirect=/book-trial"
+                className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition flex items-center justify-center gap-2"
+              >
+                <UserPlus className="w-4 h-4 text-lime-400" />
+                <span>Create New Account (Sign Up)</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setAuthPromptOpen(false)}
+                className="w-full py-2.5 rounded-xl bg-transparent text-slate-400 hover:text-white font-semibold text-xs"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

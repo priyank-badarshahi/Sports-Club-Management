@@ -520,7 +520,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addBooking: (bookingData) => {
-    const { bookings, socialSessions, members, settings, courts, plans } = get();
+    const { bookings, socialSessions, members, settings, courts, plans, currentRole } = get();
+
+    // Authentication enforcement: Users cannot book without logging in or signing up
+    const isStaff = ['owner', 'manager', 'front_desk', 'bar_staff', 'shop_staff'].includes(currentRole);
+    if (!isStaff && currentRole === 'visitor') {
+      get().addToast({
+        type: 'error',
+        title: 'Authentication Required',
+        message: 'You cannot book without logging in or signing up. Please sign in or create an account.',
+      });
+      return null;
+    }
 
     // 1. Session duration enforcement: standard 60 minutes
     const startTime = bookingData.startTime;

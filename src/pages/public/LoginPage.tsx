@@ -98,16 +98,17 @@ export const LoginPage: React.FC = () => {
       else if (rawRole.includes('manager')) matchedRole = 'manager';
       else matchedRole = 'member';
 
-      const tier = (String(result.user?.membershipPlan || 'silver').toLowerCase()) as MembershipTier;
-      const memberId = result.user?.memberId || 'M001';
+      const isMember = matchedRole === 'member';
+      const tier = isMember ? ((String(result.user?.membershipPlan || 'silver').toLowerCase()) as MembershipTier) : undefined;
+      const memberId = isMember ? (result.user?.memberId || 'M001') : undefined;
 
       // Ensure member profile exists in Zustand client store for seamless navigation
       const storeMembers = useAppStore.getState().members;
       const existingMember = storeMembers.find(
-        (m) => m.email.toLowerCase() === result.user.email.toLowerCase() || m.id === memberId
+        (m) => m.email.toLowerCase() === result.user.email.toLowerCase() || (isMember && m.id === memberId)
       );
 
-      if (!existingMember && matchedRole === 'member') {
+      if (!existingMember && isMember && tier && memberId) {
         useAppStore.setState((state) => ({
           members: [
             {
@@ -142,15 +143,18 @@ export const LoginPage: React.FC = () => {
         email: result.user.email,
         role: matchedRole,
         avatar: existingMember?.avatar || (matchedRole === 'owner' ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80' : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80'),
-        tier: tier,
-        memberId: memberId,
+        tier: isMember ? tier : undefined,
+        memberId: isMember ? memberId : undefined,
       });
 
       // Refresh members from database
       syncMembers();
 
-      // Route to respective route based on role
-      if (matchedRole === 'member') {
+      // Route to respective route based on role or redirect parameter
+      const redirectParam = searchParams.get('redirect');
+      if (redirectParam && redirectParam.startsWith('/')) {
+        navigate(redirectParam);
+      } else if (matchedRole === 'member') {
         navigate('/member/home');
       } else if (matchedRole === 'bar_staff') {
         navigate('/staff/bar');
@@ -284,9 +288,12 @@ export const LoginPage: React.FC = () => {
       });
 
       // Sync members from database
-      syncMembers();
-
-      navigate('/member/home');
+      const redirectParam = searchParams.get('redirect');
+      if (redirectParam && redirectParam.startsWith('/')) {
+        navigate(redirectParam);
+      } else {
+        navigate('/member/home');
+      }
     } catch (err: any) {
       console.error('Signup error:', err);
       addToast({

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { Court, SportType } from '../../types';
 import { 
@@ -14,7 +15,10 @@ import {
   Check, 
   Clock, 
   Filter,
-  Sparkles
+  Sparkles,
+  Lock,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import { formatINR, getCourtStatusBadge, getTierBadgeClass } from '../../lib/formatters';
 
@@ -23,6 +27,7 @@ export const CourtsPage: React.FC = () => {
   const [selectedSport, setSelectedSport] = useState<SportType | 'all'>('all');
   const [filterIndoor, setFilterIndoor] = useState<'all' | 'indoor' | 'outdoor'>('all');
   const [bookingCourt, setBookingCourt] = useState<Court | null>(null);
+  const [authRequiredModalOpen, setAuthRequiredModalOpen] = useState(false);
 
   // Quick booking drawer state
   const [bookingForm, setBookingForm] = useState({
@@ -41,6 +46,10 @@ export const CourtsPage: React.FC = () => {
   });
 
   const handleOpenBooking = (court: Court) => {
+    if (currentRole === 'visitor' || currentUser.role === 'visitor') {
+      setAuthRequiredModalOpen(true);
+      return;
+    }
     setBookingCourt(court);
     setBookingForm({
       date: new Date().toISOString().split('T')[0],
@@ -53,9 +62,13 @@ export const CourtsPage: React.FC = () => {
 
   const handleConfirmBooking = (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentRole === 'visitor' || currentUser.role === 'visitor') {
+      setAuthRequiredModalOpen(true);
+      return;
+    }
     if (!bookingCourt) return;
 
-    const tier = currentUser.tier || 'walk_in';
+    const tier = currentRole === 'member' ? (currentUser.tier || 'walk_in') : 'walk_in';
     const hourlyPrice = bookingCourt.hourlyRate[tier];
 
     addBooking({
@@ -339,12 +352,12 @@ export const CourtsPage: React.FC = () => {
                       <span>{formatINR(bookingCourt.hourlyRate.walk_in)}</span>
                     </div>
                     <div className="flex justify-between text-lime-400 font-semibold">
-                      <span>Your Rate ({currentUser.tier || 'walk_in'}):</span>
-                      <span>{formatINR(bookingCourt.hourlyRate[currentUser.tier || 'walk_in'])}</span>
+                      <span>Your Rate ({currentRole === 'member' && currentUser.tier ? currentUser.tier : 'Standard'}):</span>
+                      <span>{formatINR(bookingCourt.hourlyRate[currentRole === 'member' ? (currentUser.tier || 'walk_in') : 'walk_in'])}</span>
                     </div>
                     <div className="pt-2 border-t border-slate-800 flex justify-between font-bold text-white text-sm">
                       <span>Total Due (incl. 18% GST):</span>
-                      <span>{formatINR(bookingCourt.hourlyRate[currentUser.tier || 'walk_in'])}</span>
+                      <span>{formatINR(bookingCourt.hourlyRate[currentRole === 'member' ? (currentUser.tier || 'walk_in') : 'walk_in'])}</span>
                     </div>
                   </div>
 
@@ -382,6 +395,50 @@ export const CourtsPage: React.FC = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* AUTH REQUIRED MODAL FOR VISITORS */}
+      {authRequiredModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-6 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mx-auto">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+                Sign In Required
+              </span>
+              <h3 className="font-heading font-extrabold text-2xl text-white">
+                Log In or Sign Up to Book
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300">
+                To reserve a championship court, you must be logged into a verified Champions Club member or visitor account.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <Link
+                to="/login?redirect=/courts"
+                className="w-full py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs shadow-md shadow-lime-400/20 transition flex items-center justify-center gap-2"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Log In to Your Account</span>
+              </Link>
+              <Link
+                to="/login?register=true&redirect=/courts"
+                className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition flex items-center justify-center gap-2"
+              >
+                <UserPlus className="w-4 h-4 text-lime-400" />
+                <span>Create New Account (Sign Up)</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setAuthRequiredModalOpen(false)}
+                className="w-full py-2.5 rounded-xl bg-transparent text-slate-400 hover:text-white font-semibold text-xs"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

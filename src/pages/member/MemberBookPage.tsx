@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { Court, SportType, Booking, MembershipTier } from '../../types';
 import { 
@@ -26,7 +26,9 @@ import {
   Flame,
   Trophy,
   Activity,
-  History
+  History,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import { formatINR, getCourtStatusBadge, formatDate, getTierBadgeClass } from '../../lib/formatters';
 import { 
@@ -43,9 +45,11 @@ import {
 type WizardStep = 1 | 2 | 3 | 4 | 5;
 
 export const MemberBookPage: React.FC = () => {
+  const navigate = useNavigate();
   const { 
     courts, 
     currentUser, 
+    currentRole,
     members, 
     bookings, 
     socialSessions, 
@@ -162,6 +166,11 @@ export const MemberBookPage: React.FC = () => {
   // Handle final reservation submit
   const handleConfirmReservation = (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentRole === 'visitor' || currentUser.role === 'visitor') {
+      alert('You must log in or sign up before booking a court.');
+      navigate('/login?redirect=/member/book');
+      return;
+    }
     if (!selectedCourt || isBenefitsBlocked) return;
 
     if (isRecurring) {
@@ -269,7 +278,44 @@ export const MemberBookPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Auto-Blocked Warning Banner */}
+      {/* AUTH GATE FOR VISITORS */}
+      {(currentRole === 'visitor' || currentUser.role === 'visitor') ? (
+        <div className="p-8 sm:p-14 rounded-3xl bg-slate-900/90 border border-slate-800 text-center space-y-6 max-w-2xl mx-auto shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="w-16 h-16 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 mx-auto shadow-inner">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-3">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
+              Authentication Required
+            </span>
+            <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
+              Log In or Sign Up to Book Courts
+            </h2>
+            <p className="text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+              Court reservations, real-time availability booking, and exclusive membership privileges are reserved for registered users. Please log in or create an account to reserve your slot.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
+            <Link
+              to="/login?redirect=/member/book"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs shadow-lg shadow-lime-400/20 transition flex items-center justify-center gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Log In to Your Account</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/login?register=true&redirect=/member/book"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition flex items-center justify-center gap-2"
+            >
+              <UserPlus className="w-4 h-4 text-lime-400" />
+              <span>Create New Account (Sign Up)</span>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Auto-Blocked Warning Banner */}
       {isBenefitsBlocked && (
         <div className="p-5 rounded-3xl bg-rose-950/40 border-2 border-rose-500/50 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
           <div className="flex items-start gap-3">
@@ -1188,6 +1234,8 @@ export const MemberBookPage: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
 
       {/* QR PASS MODAL */}

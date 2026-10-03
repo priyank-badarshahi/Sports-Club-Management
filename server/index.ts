@@ -263,11 +263,11 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
 });
 
 // Staff verification map requiring valid password for each staff account
-export const DEMO_STAFF_MAP: Record<string, { role: string; name: string; password?: string; memberId?: string; membershipPlan?: string; phone?: string }> = {
+export const DEMO_STAFF_MAP: Record<string, { role: string; name: string; password?: string; memberId?: string; phone?: string }> = {
   'priyank@gmail.com': { role: 'front_desk', name: 'Priyank Patel', password: 'priyank', memberId: 'FD001', phone: '+91 98765 22222' },
-  'jack@gmail.com': { role: 'owner', name: 'Jack Jackson', password: 'jackson', memberId: 'ADM001', membershipPlan: 'Gold', phone: '+91 98765 00001' },
-  'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', password: 'password', memberId: 'ADM001', membershipPlan: 'Gold' },
-  'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', password: 'password', memberId: 'ADM001', membershipPlan: 'Gold' },
+  'jack@gmail.com': { role: 'owner', name: 'Jack Jackson', password: 'jackson', memberId: 'ADM001', phone: '+91 98765 00001' },
+  'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', password: 'password', memberId: 'ADM001' },
+  'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', password: 'password', memberId: 'ADM001' },
   'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma', password: 'password', memberId: 'FD002' },
   'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma', password: 'password', memberId: 'FD003' },
   'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra', password: 'password', memberId: 'SH001' },
@@ -343,8 +343,8 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
           'member';
 
         const name = profile?.name || member?.name || authData.user.user_metadata?.name || targetEmail.split('@')[0];
-        const memberId = profile?.member_id || member?.member_id || 'M001';
-        const membershipPlan = profile?.membership_plan || member?.plan || 'Silver';
+        const memberId = role === 'member' ? (profile?.member_id || member?.member_id || 'M001') : (profile?.member_id || 'STF001');
+        const membershipPlan = role === 'member' ? (profile?.membership_plan || member?.plan || 'Silver') : undefined;
         const phone = profile?.phone || member?.phone || '';
 
         console.log(`✅ [Supabase Auth] User authenticated successfully: ${targetEmail} (${role})`);
@@ -387,7 +387,7 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
             email: cleanIdentifier,
             role: staff.role,
             memberId: staff.memberId || 'STF001',
-            membershipPlan: staff.membershipPlan || 'Gold',
+            membershipPlan: undefined,
             phone: staff.phone || '+91 98765 22222',
           },
         });
