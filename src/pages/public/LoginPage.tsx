@@ -99,7 +99,9 @@ export const LoginPage: React.FC = () => {
       else matchedRole = 'member';
 
       const isMember = matchedRole === 'member';
-      const tier = isMember ? ((String(result.user?.membershipPlan || 'silver').toLowerCase()) as MembershipTier) : undefined;
+      const rawPlan = result.user?.membershipPlan;
+      const hasPlan = isMember && rawPlan && rawPlan !== 'None' && rawPlan !== 'none';
+      const tier = hasPlan ? ((String(rawPlan).toLowerCase()) as MembershipTier) : undefined;
       const memberId = isMember ? (result.user?.memberId || 'M001') : undefined;
 
       // Ensure member profile exists in Zustand client store for seamless navigation
@@ -108,7 +110,7 @@ export const LoginPage: React.FC = () => {
         (m) => m.email.toLowerCase() === result.user.email.toLowerCase() || (isMember && m.id === memberId)
       );
 
-      if (!existingMember && isMember && tier && memberId) {
+      if (!existingMember && isMember && memberId) {
         useAppStore.setState((state) => ({
           members: [
             {
@@ -118,11 +120,11 @@ export const LoginPage: React.FC = () => {
               email: result.user.email,
               phone: result.user.phone || '+91 98765 43210',
               avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-              tier: tier,
+              tier: tier || 'none',
               status: 'active',
               joinDate: new Date().toISOString().split('T')[0],
               expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-              walletBalance: tier === 'gold' ? 5000 : 2500,
+              walletBalance: 0,
               activeTabBalance: 0,
               emergencyContact: {
                 name: 'Family Contact',
@@ -217,16 +219,15 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    // Detect Junior status
+    // Detect Junior status for emergency contact label
     const birthYear = new Date(dob).getFullYear();
     const currentYear = new Date().getFullYear();
     const isJunior = (currentYear - birthYear) < 18;
-    const tier: MembershipTier = isJunior ? 'junior' : 'gold';
 
     try {
       setIsSubmitting(true);
 
-      // Save user in Supabase database & Auth
+      // Save user in Supabase database & Auth without assigning any paid plan
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
@@ -239,7 +240,7 @@ export const LoginPage: React.FC = () => {
           password: password,
           dob: dob,
           sport: sport,
-          tier: tier,
+          plan: 'None',
         }),
       });
 
@@ -256,16 +257,19 @@ export const LoginPage: React.FC = () => {
 
       const assignedMemberId = result.user?.memberId || `M${String(Math.floor(Math.random() * 900) + 100)}`;
 
-      const newMemberData = {
+      const newMemberData: any = {
+        id: assignedMemberId,
+        memberNumber: `CC-2026-${assignedMemberId}`,
         fullName: fullName.trim(),
         phone: phone.trim(),
         email: email.trim(),
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-        tier: tier,
+        tier: 'none',
         preferredSports: [sport as any],
         status: 'active' as const,
+        joinDate: new Date().toISOString().split('T')[0],
         expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        walletBalance: tier === 'gold' ? 5000 : 2500,
+        walletBalance: 0,
         activeTabBalance: 0,
         emergencyContact: {
           name: isJunior ? 'Guardian Registered' : 'Secondary Contact',
@@ -275,15 +279,20 @@ export const LoginPage: React.FC = () => {
         notes: `Registered via Supabase DB on ${new Date().toLocaleDateString()}`
       };
 
-      // Register in local Zustand store
-      registerMember(newMemberData, 'card', tier === 'gold' ? 5000 : 2500, 'annual');
+      // Add newly registered member to client store with ₹0 initial wallet balance
+      useAppStore.setState((state) => ({
+        members: [
+          newMemberData,
+          ...state.members.filter(m => m.id !== assignedMemberId && m.email.toLowerCase() !== email.trim().toLowerCase())
+        ],
+      }));
 
       loginUser({
         name: fullName.trim(),
         email: email.trim(),
         role: 'member',
         avatar: newMemberData.avatar,
-        tier: tier,
+        tier: undefined,
         memberId: assignedMemberId
       });
 

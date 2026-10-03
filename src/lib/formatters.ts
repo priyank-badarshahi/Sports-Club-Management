@@ -57,6 +57,8 @@ export function getTierBadgeClass(tier: MembershipTier): string {
       return 'bg-gradient-to-r from-slate-200 via-slate-100 to-zinc-400 text-slate-900 font-bold shadow-sm shadow-slate-400/20';
     case 'junior':
       return 'bg-sky-500 text-white font-bold shadow-sm shadow-sky-500/20';
+    case 'none':
+      return 'bg-slate-800 text-slate-300 font-medium border border-slate-700';
     case 'walk_in':
     default:
       return 'bg-slate-700 text-slate-200 font-medium';
@@ -71,6 +73,8 @@ export function getTierName(tier: MembershipTier): string {
       return 'Silver Tier';
     case 'junior':
       return 'Junior Tier';
+    case 'none':
+      return 'No Plan';
     case 'walk_in':
       return 'Walk-in / Guest';
   }

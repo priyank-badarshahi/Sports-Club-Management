@@ -7,7 +7,7 @@ export type Role =
   | 'manager' 
   | 'owner';
 
-export type MembershipTier = 'gold' | 'silver' | 'junior' | 'walk_in';
+export type MembershipTier = 'gold' | 'silver' | 'junior' | 'walk_in' | 'none';
 
 export type SportType = 'tennis' | 'padel' | 'badminton' | 'cricket';
 

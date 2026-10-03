@@ -62,7 +62,8 @@ export const MemberBookPage: React.FC = () => {
   } = useAppStore();
 
   const currentMember = members.find((m) => m.id === currentUser.memberId);
-  const tier: MembershipTier = currentMember?.tier || currentUser.tier || 'gold';
+  const hasTier = (currentMember?.tier && currentMember.tier !== 'none') || (currentUser.tier && currentUser.tier !== 'none');
+  const tier: MembershipTier = hasTier ? ((currentMember?.tier && currentMember.tier !== 'none') ? currentMember.tier : currentUser.tier!) : 'walk_in';
   const plan = plans.find((p) => p.tier === tier);
 
   // Main Page View (Wizard vs My Bookings)

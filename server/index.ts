@@ -48,8 +48,12 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
     const resolvedPassword = password;
     const resolvedDob = dateOfBirth || dob || '2000-01-15';
     const resolvedSport = preferredSport || sport || 'Tennis';
-    const rawPlan = String(plan || tier || 'Silver').toLowerCase();
-    const resolvedPlan = rawPlan === 'gold' ? 'Gold' : rawPlan === 'junior' ? 'Junior' : 'Silver';
+    const rawPlan = String(plan || tier || '').trim().toLowerCase();
+    const resolvedPlan =
+      rawPlan === 'gold' ? 'Gold' :
+      rawPlan === 'silver' ? 'Silver' :
+      rawPlan === 'junior' ? 'Junior' :
+      'None';
 
     // Validate inputs
     if (!resolvedName || !resolvedEmail || !resolvedPhone || !resolvedPassword) {
@@ -67,8 +71,8 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
     expiryDateObj.setFullYear(expiryDateObj.getFullYear() + 1);
     const expiryStr = expiryDateObj.toISOString().split('T')[0];
 
-    const discountRate = resolvedPlan === 'Gold' ? 0.20 : resolvedPlan === 'Junior' ? 0.15 : 0.10;
-    const initialSpent = resolvedPlan === 'Gold' ? 45000 : resolvedPlan === 'Silver' ? 28000 : 22000;
+    const discountRate = resolvedPlan === 'Gold' ? 0.20 : resolvedPlan === 'Junior' ? 0.15 : resolvedPlan === 'Silver' ? 0.10 : 0;
+    const initialSpent = 0;
 
     // If Supabase is configured with valid credentials
     if (isSupabaseConfigured) {
@@ -157,7 +161,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
           role: 'member',
           phone: cleanPhone,
           member_id: memberId,
-          membership_plan: resolvedPlan,
+          membership_plan: resolvedPlan === 'None' ? null : resolvedPlan,
         });
 
       if (profileError) {
@@ -183,7 +187,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
         status: 'active',
         discount_rate: discountRate,
         total_bookings: 0,
-        total_spent: initialSpent,
+        total_spent: 0,
       };
 
       const { data: memberData, error: memberError } = await supabase
@@ -213,7 +217,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
           phone: cleanPhone,
           role: 'member',
           memberId,
-          membershipPlan: resolvedPlan,
+          membershipPlan: resolvedPlan === 'None' ? undefined : resolvedPlan,
         },
         member: memberData,
       });
@@ -234,7 +238,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
         phone: cleanPhone,
         role: 'member',
         memberId: fallbackMemberId,
-        membershipPlan: resolvedPlan,
+        membershipPlan: resolvedPlan === 'None' ? undefined : resolvedPlan,
       },
       member: {
         id: `mem_${Date.now()}`,
@@ -249,7 +253,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
         status: 'active',
         discountRate,
         totalBookings: 0,
-        totalSpent: initialSpent,
+        totalSpent: 0,
       },
     });
 
@@ -344,7 +348,11 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
 
         const name = profile?.name || member?.name || authData.user.user_metadata?.name || targetEmail.split('@')[0];
         const memberId = role === 'member' ? (profile?.member_id || member?.member_id || 'M001') : (profile?.member_id || 'STF001');
-        const membershipPlan = role === 'member' ? (profile?.membership_plan || member?.plan || 'Silver') : undefined;
+        const rawPlan = profile?.membership_plan || member?.plan;
+        const membershipPlan =
+          role === 'member' && rawPlan && rawPlan !== 'None' && rawPlan !== 'none'
+            ? rawPlan
+            : undefined;
         const phone = profile?.phone || member?.phone || '';
 
         console.log(`✅ [Supabase Auth] User authenticated successfully: ${targetEmail} (${role})`);
@@ -417,8 +425,13 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
 
 // Helper to map DB row to frontend Member interface
 function formatMemberForClient(m: any) {
-  const tierRaw = String(m.plan || 'Silver').toLowerCase();
-  const tier = tierRaw === 'gold' ? 'gold' : tierRaw === 'junior' ? 'junior' : 'silver';
+  const tierRaw = String(m.plan || '').toLowerCase();
+  const tier: any =
+    tierRaw === 'gold' ? 'gold' :
+    tierRaw === 'junior' ? 'junior' :
+    tierRaw === 'silver' ? 'silver' :
+    'none';
+
   let emergencyContact = { name: 'Emergency Contact', phone: m.phone || '', relation: 'Family' };
   if (typeof m.emergency_contact === 'string') {
     try {
@@ -426,6 +439,12 @@ function formatMemberForClient(m: any) {
     } catch (e) {}
   } else if (typeof m.emergency_contact === 'object' && m.emergency_contact !== null) {
     emergencyContact = m.emergency_contact;
+  }
+
+  // Wallet balance: strictly 0 for users unless explicit positive wallet balance exists
+  let walletBalance = 0;
+  if (typeof m.wallet_balance === 'number') {
+    walletBalance = m.wallet_balance;
   }
 
   return {
@@ -441,7 +460,7 @@ function formatMemberForClient(m: any) {
     status: m.status || 'active',
     joinDate: m.start_date || m.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
     expiryDate: m.expiry_date || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    walletBalance: typeof m.total_spent === 'number' ? Math.round(m.total_spent / 10) : 2500,
+    walletBalance,
     activeTabBalance: 0,
     emergencyContact,
     preferredSports: ['tennis'],

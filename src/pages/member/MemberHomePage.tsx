@@ -57,9 +57,15 @@ export const MemberHomePage: React.FC = () => {
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] px-2.5 py-0.5 rounded-full ${getTierBadgeClass(currentMember.tier)}`}>
-                  {getTierName(currentMember.tier)}
-                </span>
+                {currentMember.tier && currentMember.tier !== 'none' && currentMember.tier !== 'walk_in' ? (
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full ${getTierBadgeClass(currentMember.tier)}`}>
+                    {getTierName(currentMember.tier)}
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold border border-slate-700">
+                    Standard Member
+                  </span>
+                )}
                 <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   Active Membership

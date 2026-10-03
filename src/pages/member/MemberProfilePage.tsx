@@ -76,9 +76,15 @@ export const MemberProfilePage: React.FC = () => {
             />
             <div>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] px-2.5 py-0.5 rounded-full ${getTierBadgeClass(currentMember.tier)}`}>
-                  {getTierName(currentMember.tier)}
-                </span>
+                {currentMember.tier && currentMember.tier !== 'none' && currentMember.tier !== 'walk_in' ? (
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full ${getTierBadgeClass(currentMember.tier)}`}>
+                    {getTierName(currentMember.tier)}
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold border border-slate-700">
+                    No Membership Plan
+                  </span>
+                )}
                 <span className="text-xs font-bold text-lime-400">Official Pass</span>
               </div>
               <h2 className="font-heading font-extrabold text-2xl text-white mt-1">

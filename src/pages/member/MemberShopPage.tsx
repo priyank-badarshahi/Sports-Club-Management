@@ -38,16 +38,16 @@ export const MemberShopPage: React.FC = () => {
     return members.find((m) => m.id === currentUser.memberId) || {
       id: currentUser.memberId || 'mem_1',
       fullName: currentUser.name || 'Member',
-      tier: currentUser.tier || 'gold',
-      walletBalance: 12500,
-      activeTabBalance: 1850,
+      tier: (currentUser.tier && currentUser.tier !== 'none') ? currentUser.tier : 'walk_in',
+      walletBalance: 0,
+      activeTabBalance: 0,
       email: currentUser.email || 'member@championsclub.in',
       phone: (currentUser as any).phone || '+91 98201 44520',
-      address: 'Penthouse 4B, Kingfisher Towers, Bengaluru',
+      address: 'Bengaluru',
     };
   }, [members, currentUser]);
 
-  const tier = member.tier || 'gold';
+  const tier = (member.tier && member.tier !== 'none') ? member.tier : 'walk_in';
   const discountPct = getMemberShopDiscountPercent(tier);
 
   // Search & Filters

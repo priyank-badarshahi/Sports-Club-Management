@@ -305,7 +305,7 @@ export const Header: React.FC<HeaderProps> = ({
                       {currentRole.replace('_', ' ')}
                     </span>
                   </div>
-                  {currentRole === 'member' && currentUser.tier && (
+                  {currentRole === 'member' && currentUser.tier && currentUser.tier !== 'none' && currentUser.tier !== 'walk_in' && (
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400">Membership Tier:</span>
                       <span className="font-semibold uppercase text-amber-400">{currentUser.tier}</span>

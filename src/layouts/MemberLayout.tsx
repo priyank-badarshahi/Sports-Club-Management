@@ -49,9 +49,11 @@ export const MemberLayout: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="font-heading font-bold text-sm text-white">{currentMember.fullName}</h2>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${getTierBadgeClass(currentMember.tier)}`}>
-                      {getTierName(currentMember.tier)}
-                    </span>
+                    {currentMember.tier && currentMember.tier !== 'none' && currentMember.tier !== 'walk_in' && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${getTierBadgeClass(currentMember.tier)}`}>
+                        {getTierName(currentMember.tier)}
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] text-slate-400 flex items-center gap-3 mt-0.5">
                     <span>Pass: <strong className="text-slate-300">{currentMember.memberNumber}</strong></span>
