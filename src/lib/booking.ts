@@ -241,7 +241,8 @@ export function calculateBookingPrice(params: {
   const { court, memberTier, date, startTime, plan, settings, overrideFree } = params;
 
   // 1. Base rate for this court by member tier
-  const tierBaseRate = court.hourlyRate[memberTier] ?? court.hourlyRate.walk_in;
+  const resolvedTier = memberTier === 'none' ? 'walk_in' : memberTier;
+  const tierBaseRate = court.hourlyRate[resolvedTier] ?? court.hourlyRate.walk_in;
   const walkInRate = court.hourlyRate.walk_in;
 
   // 2. Peak hour evaluation
@@ -495,7 +496,7 @@ export function getAvailableCourtsAtTime(
         court,
         isAvailable: check.available,
         conflictReason: check.conflictReason,
-        rateForTier: court.hourlyRate[tier] || court.hourlyRate.walk_in,
+        rateForTier: (tier === 'none' ? court.hourlyRate.walk_in : court.hourlyRate[tier]) || court.hourlyRate.walk_in,
       };
     });
 }

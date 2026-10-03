@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { Role, MembershipTier } from '../../types';
 import { 
@@ -19,6 +19,7 @@ import {
 export const LoginPage: React.FC = () => {
   const { loginUser, addToast, registerMember, syncMembers } = useAppStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Mode toggle
   const [isRegister, setIsRegister] = useState(false);
@@ -154,7 +155,7 @@ export const LoginPage: React.FC = () => {
 
       // Route to respective route based on role or redirect parameter
       const redirectParam = searchParams.get('redirect');
-      if (redirectParam && redirectParam.startsWith('/')) {
+      if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('/login')) {
         navigate(redirectParam);
       } else if (matchedRole === 'member') {
         navigate('/member/home');
@@ -298,7 +299,7 @@ export const LoginPage: React.FC = () => {
 
       // Sync members from database
       const redirectParam = searchParams.get('redirect');
-      if (redirectParam && redirectParam.startsWith('/')) {
+      if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('/login')) {
         navigate(redirectParam);
       } else {
         navigate('/member/home');

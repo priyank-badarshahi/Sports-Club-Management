@@ -606,7 +606,7 @@ export const MemberBookPage: React.FC = () => {
                   const isAvailable = check.available && dailyCapStatus.allowed;
                   const isSelected = selectedCourt?.id === court.id;
                   const badge = getCourtStatusBadge(court.status);
-                  const tierRate = court.hourlyRate[tier] || court.hourlyRate.walk_in;
+                  const tierRate = (tier === 'none' ? court.hourlyRate.walk_in : court.hourlyRate[tier]) || court.hourlyRate.walk_in;
 
                   return (
                     <div

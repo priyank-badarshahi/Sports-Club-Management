@@ -68,7 +68,8 @@ export const CourtsPage: React.FC = () => {
     }
     if (!bookingCourt) return;
 
-    const tier = currentRole === 'member' ? (currentUser.tier || 'walk_in') : 'walk_in';
+    const rawTier = currentRole === 'member' ? (currentUser.tier || 'walk_in') : 'walk_in';
+    const tier = rawTier === 'none' ? 'walk_in' : rawTier;
     const hourlyPrice = bookingCourt.hourlyRate[tier];
 
     addBooking({
@@ -352,12 +353,12 @@ export const CourtsPage: React.FC = () => {
                       <span>{formatINR(bookingCourt.hourlyRate.walk_in)}</span>
                     </div>
                     <div className="flex justify-between text-lime-400 font-semibold">
-                      <span>Your Rate ({currentRole === 'member' && currentUser.tier ? currentUser.tier : 'Standard'}):</span>
-                      <span>{formatINR(bookingCourt.hourlyRate[currentRole === 'member' ? (currentUser.tier || 'walk_in') : 'walk_in'])}</span>
+                      <span>Your Rate ({currentRole === 'member' && currentUser.tier && currentUser.tier !== 'none' ? currentUser.tier : 'Standard'}):</span>
+                      <span>{formatINR(bookingCourt.hourlyRate[(currentRole === 'member' && currentUser.tier && currentUser.tier !== 'none' ? currentUser.tier : 'walk_in')])}</span>
                     </div>
                     <div className="pt-2 border-t border-slate-800 flex justify-between font-bold text-white text-sm">
                       <span>Total Due (incl. 18% GST):</span>
-                      <span>{formatINR(bookingCourt.hourlyRate[currentRole === 'member' ? (currentUser.tier || 'walk_in') : 'walk_in'])}</span>
+                      <span>{formatINR(bookingCourt.hourlyRate[(currentRole === 'member' && currentUser.tier && currentUser.tier !== 'none' ? currentUser.tier : 'walk_in')])}</span>
                     </div>
                   </div>
 

@@ -1112,7 +1112,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     const spots = getSocialSessionSpots(session);
-    const fee = session.fee[member.tier] || 0;
+    const fee = (member.tier === 'none' ? session.fee.walk_in : session.fee[member.tier]) || 0;
 
     let updatedMembers = get().members;
     if (fee > 0 && paymentMethod === 'wallet') {
@@ -1189,7 +1189,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!session) return { success: false, message: 'Session not found' };
 
     const member = get().members.find((m) => m.id === memberId);
-    const fee = member ? (session.fee[member.tier] || 0) : 0;
+    const fee = member ? ((member.tier === 'none' ? session.fee.walk_in : session.fee[member.tier]) || 0) : 0;
 
     let updatedMembers = get().members;
     if (member && fee > 0) {

@@ -250,8 +250,8 @@ export const StaffBookingsPage: React.FC = () => {
     e.preventDefault();
     const court = courts.find((c) => c.id === bookingForm.courtId) || courts[0];
     const member = members.find((m) => m.id === bookingForm.memberId);
-    const tier = member ? member.tier : bookingForm.tier;
-
+    const rawTier = member ? member.tier : bookingForm.tier;
+    const tier = rawTier === 'none' ? 'walk_in' : rawTier;
     const rate = court.hourlyRate[tier] || court.hourlyRate.walk_in;
     const discount = Math.max(0, court.hourlyRate.walk_in - rate);
 

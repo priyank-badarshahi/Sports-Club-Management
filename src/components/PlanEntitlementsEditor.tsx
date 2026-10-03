@@ -284,7 +284,7 @@ export const PlanEntitlementsEditor: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {courts.map((c) => {
               const regularRate = c.hourlyRate.walk_in;
-              const tierRate = c.hourlyRate[selectedTier];
+              const tierRate = (selectedTier === 'none' ? c.hourlyRate.walk_in : c.hourlyRate[selectedTier]) ?? c.hourlyRate.walk_in;
               const savings = regularRate - tierRate;
 
               return (
