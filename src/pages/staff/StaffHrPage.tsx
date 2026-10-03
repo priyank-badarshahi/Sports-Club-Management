@@ -19,7 +19,14 @@ import {
   ShieldCheck, 
   FileText,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Eye,
+  EyeOff,
+  Lock,
+  Loader2,
+  User,
+  Mail,
+  Phone
 } from 'lucide-react';
 import { formatINR, formatDate, formatDateTime } from '../../lib/formatters';
 import { validateShiftConflict, calculateEmployeePayroll } from '../../lib/hr';
@@ -51,7 +58,8 @@ export const StaffHrPage: React.FC = () => {
     decideLeave,
     runPayrollMonth, 
     markPayrollPaid,
-    createCoachCourtBlock
+    createCoachCourtBlock,
+    addToast
   } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'employees' | 'roster' | 'attendance' | 'leaves' | 'payroll' | 'coaches'>('employees');
@@ -61,17 +69,32 @@ export const StaffHrPage: React.FC = () => {
   const [selectedPayrollForSlip, setSelectedPayrollForSlip] = useState<Payroll | null>(null);
   const [showCoachBookingModal, setShowCoachBookingModal] = useState(false);
 
-  // New Employee Modal
+  // New Employee Modal state
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmittingEmployee, setIsSubmittingEmployee] = useState(false);
   const [newEmployeeForm, setNewEmployeeForm] = useState({
     name: '',
     role: 'front_desk' as Employee['role'],
     department: 'Front Office' as Employee['department'],
     phone: '',
     email: '',
+    password: '',
+    confirmPassword: '',
+    dob: '1995-05-15',
     monthlySalary: 38000,
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
   });
+
+  const handleRoleChange = (role: Employee['role']) => {
+    let department: Employee['department'] = 'Front Office';
+    if (role === 'bar_staff') department = 'Food & Beverage';
+    else if (role === 'shop_staff') department = 'Pro Shop & Retail';
+    else if (role === 'manager') department = 'Management';
+    else department = 'Front Office';
+
+    setNewEmployeeForm((prev) => ({ ...prev, role, department }));
+  };
 
   // Shift Assignment Modal
   const [showAddShiftModal, setShowAddShiftModal] = useState(false);
@@ -135,33 +158,118 @@ export const StaffHrPage: React.FC = () => {
   }, [showAddShiftModal, newShiftForm, employees, shifts]);
 
   // Handle Add Employee Submit
-  const handleAddEmployeeSubmit = (e: React.FormEvent) => {
+  const handleAddEmployeeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addEmployee({
-      name: newEmployeeForm.name,
-      role: newEmployeeForm.role,
-      department: newEmployeeForm.department,
-      phone: newEmployeeForm.phone,
-      email: newEmployeeForm.email,
-      avatar: newEmployeeForm.avatar,
-      monthlySalary: newEmployeeForm.monthlySalary,
-      salaryStructure: {
-        baseSalary: newEmployeeForm.monthlySalary,
-        hraAllowance: Math.round(newEmployeeForm.monthlySalary * 0.2),
-        transportAllowance: 3000,
-        specialAllowance: Math.round(newEmployeeForm.monthlySalary * 0.1),
-        pfEligible: true,
-        taxDeductionPercent: 5,
-        bankAccount: 'HDFC-502000' + Math.floor(1000 + Math.random() * 9000),
-        ifscCode: 'HDFC0000428',
-      },
-      documents: [],
-      shiftPreference: { preferredShift: 'morning', maxWeeklyHours: 44, preferredOffDays: ['Sunday'] },
-      leaveBalances: { casual: 12, sick: 10, annual: 15, emergency: 5, usedCasual: 0, usedSick: 0, usedAnnual: 0, usedEmergency: 0 },
-      emergencyContact: { name: 'Contact on Record', relation: 'Self', phone: newEmployeeForm.phone },
-      status: 'active',
-    });
-    setShowAddEmployeeModal(false);
+
+    if (!newEmployeeForm.name.trim() || !newEmployeeForm.email.trim() || !newEmployeeForm.phone.trim() || !newEmployeeForm.password || !newEmployeeForm.dob) {
+      addToast({
+        type: 'error',
+        title: 'Fields Required',
+        message: 'Full name, email, phone, date of birth, and password are required fields.',
+      });
+      return;
+    }
+
+    if (newEmployeeForm.password.length < 6) {
+      addToast({
+        type: 'error',
+        title: 'Password Too Short',
+        message: 'Password must be at least 6 characters long.',
+      });
+      return;
+    }
+
+    if (newEmployeeForm.password !== newEmployeeForm.confirmPassword) {
+      addToast({
+        type: 'error',
+        title: 'Password Mismatch',
+        message: 'Passwords do not match.',
+      });
+      return;
+    }
+
+    try {
+      setIsSubmittingEmployee(true);
+
+      const res = await fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newEmployeeForm.name.trim(),
+          email: newEmployeeForm.email.trim(),
+          password: newEmployeeForm.password,
+          role: newEmployeeForm.role,
+          phone: newEmployeeForm.phone.trim(),
+          department: newEmployeeForm.department,
+          dob: newEmployeeForm.dob,
+          monthlySalary: newEmployeeForm.monthlySalary,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        addToast({
+          type: 'error',
+          title: 'Enrollment Error',
+          message: data.error || 'Failed to create staff member account.',
+        });
+        return;
+      }
+
+      addEmployee({
+        name: newEmployeeForm.name.trim(),
+        role: newEmployeeForm.role,
+        department: newEmployeeForm.department,
+        phone: newEmployeeForm.phone.trim(),
+        email: newEmployeeForm.email.trim(),
+        avatar: newEmployeeForm.avatar,
+        monthlySalary: newEmployeeForm.monthlySalary,
+        salaryStructure: {
+          baseSalary: newEmployeeForm.monthlySalary,
+          hraAllowance: Math.round(newEmployeeForm.monthlySalary * 0.2),
+          transportAllowance: 3000,
+          specialAllowance: Math.round(newEmployeeForm.monthlySalary * 0.1),
+          pfEligible: true,
+          taxDeductionPercent: 5,
+          bankAccount: 'HDFC-502000' + Math.floor(1000 + Math.random() * 9000),
+          ifscCode: 'HDFC0000428',
+        },
+        documents: [],
+        shiftPreference: { preferredShift: 'morning', maxWeeklyHours: 44, preferredOffDays: ['Sunday'] },
+        leaveBalances: { casual: 12, sick: 10, annual: 15, emergency: 5, usedCasual: 0, usedSick: 0, usedAnnual: 0, usedEmergency: 0 },
+        emergencyContact: { name: 'Emergency Family', relation: 'Family', phone: newEmployeeForm.phone.trim() },
+        status: 'active',
+      });
+
+      addToast({
+        type: 'success',
+        title: 'Staff Member Enrolled!',
+        message: `${newEmployeeForm.name} can now sign in using ${newEmployeeForm.email} as ${newEmployeeForm.role.replace('_', ' ').toUpperCase()}.`,
+      });
+
+      setShowAddEmployeeModal(false);
+      setNewEmployeeForm({
+        name: '',
+        role: 'front_desk',
+        department: 'Front Office',
+        phone: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        dob: '1995-05-15',
+        monthlySalary: 38000,
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+      });
+    } catch (err: any) {
+      console.error('Failed to create employee:', err);
+      addToast({
+        type: 'error',
+        title: 'Network Error',
+        message: 'Could not connect to server to enroll employee.',
+      });
+    } finally {
+      setIsSubmittingEmployee(false);
+    }
   };
 
   // Handle Add Shift Submit
@@ -940,39 +1048,63 @@ export const StaffHrPage: React.FC = () => {
       {/* MODAL 4: Add Employee Modal */}
       {showAddEmployeeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md text-xs">
-          <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl p-6 space-y-4">
-            <h3 className="font-heading font-extrabold text-base text-white">Enroll New Staff Member</h3>
-
-            <form onSubmit={handleAddEmployeeSubmit} className="space-y-3">
+          <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-400 mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={newEmployeeForm.name}
-                  onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
-                />
+                <h3 className="font-heading font-extrabold text-base text-white">Enroll New Staff Member</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Set up employee details and portal credentials with role-based access
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddEmployeeModal(false)}
+                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleAddEmployeeSubmit} className="p-6 overflow-y-auto space-y-4">
+              {/* Credentials notice banner */}
+              <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-lime-400/10 border border-lime-400/20 text-lime-300">
+                <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-lime-400" />
+                <div className="text-[11px] leading-relaxed">
+                  <span className="font-semibold text-white">Staff Login Credentials:</span> This employee can log in directly using this email & password. The system will automatically route them to their designated workplace module upon signing in.
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Full Name */}
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">Full Name *</label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Ramesh Kumar"
+                    value={newEmployeeForm.name}
+                    onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, name: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+              </div>
+
+              {/* Role & Department */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">Role</label>
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">Staff Role *</label>
                   <select
                     value={newEmployeeForm.role}
-                    onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, role: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400 capitalize"
+                    onChange={(e) => handleRoleChange(e.target.value as any)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400 font-medium"
                   >
-                    <option value="front_desk">Front Desk</option>
-                    <option value="head_coach">Head Coach</option>
-                    <option value="coach">Coach</option>
-                    <option value="barista">Barista</option>
-                    <option value="bartender">Bartender</option>
-                    <option value="chef">Chef</option>
-                    <option value="line_cook">Line Cook</option>
-                    <option value="groundskeeper">Groundskeeper</option>
-                    <option value="shop_lead">Pro Shop Lead</option>
-                    <option value="manager">Manager</option>
+                    <option value="front_desk">Front Desk (Bookings & Check-in)</option>
+                    <option value="bar_staff">Bar Staff (F&B / Bar Tab)</option>
+                    <option value="shop_staff">Shop Staff (Pro Shop Retail)</option>
+                    <option value="manager">Manager (Operations Dashboard)</option>
                   </select>
                 </div>
 
@@ -981,67 +1113,154 @@ export const StaffHrPage: React.FC = () => {
                   <select
                     value={newEmployeeForm.department}
                     onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, department: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400 font-medium"
                   >
                     <option value="Front Office">Front Office</option>
-                    <option value="Sports & Coaching">Sports & Coaching</option>
                     <option value="Food & Beverage">Food & Beverage</option>
-                    <option value="Kitchen">Kitchen</option>
-                    <option value="Facilities & Grounds">Facilities & Grounds</option>
                     <option value="Pro Shop & Retail">Pro Shop & Retail</option>
                     <option value="Management">Management</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Login Email & Phone Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">Login Email Address *</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="staff@championsclub.in"
+                      value={newEmployeeForm.email}
+                      onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, email: e.target.value })}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-400 mb-1">Phone Number *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newEmployeeForm.phone}
-                    onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
-                  />
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="+91 98765 43210"
+                      value={newEmployeeForm.phone}
+                      onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, phone: e.target.value })}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
+                    />
+                  </div>
                 </div>
+              </div>
+
+              {/* Date of Birth & Monthly Basic Salary */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">Email Address *</label>
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">Date of Birth *</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="date"
+                      required
+                      value={newEmployeeForm.dob}
+                      onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, dob: e.target.value })}
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">Monthly Basic Salary (₹) *</label>
                   <input
-                    type="email"
+                    type="number"
                     required
-                    value={newEmployeeForm.email}
-                    onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
+                    min="10000"
+                    value={newEmployeeForm.monthlySalary}
+                    onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, monthlySalary: Number(e.target.value) })}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-bold font-mono focus:outline-none focus:border-lime-400"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-400 mb-1">Monthly Basic Salary (₹) *</label>
-                <input
-                  type="number"
-                  required
-                  min="10000"
-                  value={newEmployeeForm.monthlySalary}
-                  onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, monthlySalary: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm font-bold font-mono focus:outline-none focus:border-lime-400"
-                />
+              {/* Password & Confirm Password */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-semibold text-slate-400">Password *</label>
+                    <span className="text-[10px] text-slate-500">Min 6 characters</span>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={newEmployeeForm.password}
+                      onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, password: e.target.value })}
+                      className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">Confirm Password *</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={newEmployeeForm.confirmPassword}
+                      onChange={(e) => setNewEmployeeForm({ ...newEmployeeForm, confirmPassword: e.target.value })}
+                      className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-lime-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+              {/* Action buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
                 <button
                   type="button"
+                  disabled={isSubmittingEmployee}
                   onClick={() => setShowAddEmployeeModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold disabled:opacity-60"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-xs font-bold"
+                  disabled={isSubmittingEmployee}
+                  className="px-5 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-xs font-bold flex items-center gap-2 shadow-lg shadow-lime-400/20 disabled:opacity-60 transition"
                 >
-                  Enroll Employee
+                  {isSubmittingEmployee ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Provisioning Credentials...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Enroll & Create Credentials</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

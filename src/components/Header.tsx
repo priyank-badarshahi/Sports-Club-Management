@@ -78,6 +78,12 @@ export const Header: React.FC<HeaderProps> = ({
       navigate('/');
     } else if (role === 'member') {
       navigate('/member/home');
+    } else if (role === 'bar_staff') {
+      navigate('/staff/bar');
+    } else if (role === 'shop_staff') {
+      navigate('/staff/shop');
+    } else if (role === 'front_desk') {
+      navigate('/staff/bookings');
     } else {
       navigate('/staff/dashboard');
     }

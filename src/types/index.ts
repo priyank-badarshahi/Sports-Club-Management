@@ -769,6 +769,8 @@ export type EmployeeRole =
   | 'head_coach' 
   | 'coach' 
   | 'front_desk' 
+  | 'bar_staff'
+  | 'shop_staff'
   | 'barista' 
   | 'bartender' 
   | 'chef' 

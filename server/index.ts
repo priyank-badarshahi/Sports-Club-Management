@@ -262,6 +262,22 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
   }
 });
 
+// Staff verification map requiring valid password for each staff account
+export const DEMO_STAFF_MAP: Record<string, { role: string; name: string; password?: string; memberId?: string; membershipPlan?: string; phone?: string }> = {
+  'priyank@gmail.com': { role: 'front_desk', name: 'Priyank Patel', password: 'priyank', memberId: 'FD001', phone: '+91 98765 22222' },
+  'jack@gmail.com': { role: 'owner', name: 'Jack Jackson', password: 'jackson', memberId: 'ADM001', membershipPlan: 'Gold', phone: '+91 98765 00001' },
+  'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', password: 'password', memberId: 'ADM001', membershipPlan: 'Gold' },
+  'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', password: 'password', memberId: 'ADM001', membershipPlan: 'Gold' },
+  'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma', password: 'password', memberId: 'FD002' },
+  'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma', password: 'password', memberId: 'FD003' },
+  'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra', password: 'password', memberId: 'SH001' },
+  'ananya.shop@championsclub.in': { role: 'shop_staff', name: 'Ananya Sen', password: 'password', memberId: 'SH002' },
+  'bar@championsclub.demo': { role: 'bar_staff', name: 'Chef Amit Roy', password: 'password', memberId: 'BR001' },
+  'rohan.bar@championsclub.in': { role: 'bar_staff', name: 'Rohan Das', password: 'password', memberId: 'BR002' },
+  'manager@championsclub.demo': { role: 'manager', name: 'Sanjay Verma', password: 'password', memberId: 'MGR001' },
+  'arjun.manager@championsclub.in': { role: 'manager', name: 'Arjun Rao', password: 'password', memberId: 'MGR002' },
+};
+
 // Login Endpoint: Authenticates user credentials via Supabase Auth and fetches profile from DB
 app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -349,22 +365,6 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
         });
         return;
       }
-
-      // Staff verification map requiring valid password for each staff account
-      const DEMO_STAFF_MAP: Record<string, { role: string; name: string; password?: string; memberId?: string; membershipPlan?: string; phone?: string }> = {
-        'priyank@gmail.com': { role: 'front_desk', name: 'Priyank Patel', password: 'priyank', memberId: 'FD001', phone: '+91 98765 22222' },
-        'jack@gmail.com': { role: 'owner', name: 'Jack Jackson', password: 'jackson', memberId: 'ADM001', membershipPlan: 'Gold', phone: '+91 98765 00001' },
-        'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', password: 'password', memberId: 'ADM001', membershipPlan: 'Gold' },
-        'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', password: 'password', memberId: 'ADM001', membershipPlan: 'Gold' },
-        'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma', password: 'password', memberId: 'FD002' },
-        'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma', password: 'password', memberId: 'FD003' },
-        'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra', password: 'password', memberId: 'SH001' },
-        'ananya.shop@championsclub.in': { role: 'shop_staff', name: 'Ananya Sen', password: 'password', memberId: 'SH002' },
-        'bar@championsclub.demo': { role: 'bar_staff', name: 'Chef Amit Roy', password: 'password', memberId: 'BR001' },
-        'rohan.bar@championsclub.in': { role: 'bar_staff', name: 'Rohan Das', password: 'password', memberId: 'BR002' },
-        'manager@championsclub.demo': { role: 'manager', name: 'Sanjay Verma', password: 'password', memberId: 'MGR001' },
-        'arjun.manager@championsclub.in': { role: 'manager', name: 'Arjun Rao', password: 'password', memberId: 'MGR002' },
-      };
 
       if (DEMO_STAFF_MAP[cleanIdentifier]) {
         const staff = DEMO_STAFF_MAP[cleanIdentifier];
@@ -558,6 +558,145 @@ app.post('/api/members', async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ success: false, error: 'Database not configured' });
   } catch (err: any) {
     console.error('❌ Error creating member:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Create/Enroll a Staff Member: creates user in Supabase Auth, profiles table, and DEMO_STAFF_MAP
+app.post('/api/employees', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, email, password, role, phone, department, monthlySalary } = req.body;
+
+    const resolvedName = (name || '').trim();
+    const resolvedEmail = (email || '').trim().toLowerCase();
+    const resolvedPhone = (phone || '').trim();
+    const resolvedPassword = password;
+    const rawRole = String(role || 'front_desk').toLowerCase();
+
+    // Standardize role to one of the 4 supported staff roles
+    let standardRole = 'front_desk';
+    let dbRoleEnum = 'frontdesk';
+    if (rawRole.includes('bar')) {
+      standardRole = 'bar_staff';
+      dbRoleEnum = 'bar';
+    } else if (rawRole.includes('shop')) {
+      standardRole = 'shop_staff';
+      dbRoleEnum = 'shop';
+    } else if (rawRole.includes('manager')) {
+      standardRole = 'manager';
+      dbRoleEnum = 'manager';
+    } else {
+      standardRole = 'front_desk';
+      dbRoleEnum = 'frontdesk';
+    }
+
+    if (!resolvedName || !resolvedEmail || !resolvedPassword) {
+      res.status(400).json({
+        success: false,
+        error: 'Staff name, email, and password are required fields.',
+      });
+      return;
+    }
+
+    if (String(resolvedPassword).length < 6) {
+      res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters long.',
+      });
+      return;
+    }
+
+    let userId: string | undefined;
+
+    if (isSupabaseConfigured) {
+      // 1. Create or update user in Supabase Auth
+      try {
+        const { data: adminData, error: adminError } = await supabase.auth.admin.createUser({
+          email: resolvedEmail,
+          password: String(resolvedPassword),
+          email_confirm: true,
+          user_metadata: {
+            name: resolvedName,
+            phone: resolvedPhone,
+            role: standardRole,
+          },
+        });
+
+        if (adminError) {
+          if (adminError.message?.toLowerCase().includes('already')) {
+            const { data: usersData } = await supabase.auth.admin.listUsers();
+            const existing = usersData?.users.find((u) => u.email?.toLowerCase() === resolvedEmail);
+            if (existing) {
+              await supabase.auth.admin.updateUserById(existing.id, {
+                password: String(resolvedPassword),
+                user_metadata: { name: resolvedName, phone: resolvedPhone, role: standardRole },
+              });
+              userId = existing.id;
+            }
+          } else {
+            console.error('❌ Supabase Auth create staff error:', adminError);
+            res.status(400).json({ success: false, error: adminError.message });
+            return;
+          }
+        } else if (adminData?.user) {
+          userId = adminData.user.id;
+        }
+      } catch (authEx: any) {
+        console.error('❌ Supabase Auth staff exception:', authEx);
+      }
+
+      // Generate staff code based on role
+      const prefix = standardRole === 'front_desk' ? 'FD' : standardRole === 'bar_staff' ? 'BR' : standardRole === 'shop_staff' ? 'SH' : 'MGR';
+      const staffCode = `${prefix}${Math.floor(100 + Math.random() * 900)}`;
+
+      // 2. Upsert into public.profiles table
+      if (userId) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: userId,
+            name: resolvedName,
+            email: resolvedEmail,
+            role: dbRoleEnum,
+            phone: resolvedPhone,
+            member_id: staffCode,
+            membership_plan: 'Gold',
+          });
+
+        if (profileError) {
+          console.warn('⚠️ Supabase staff profile upsert warning:', profileError.message);
+        }
+      }
+    }
+
+    // Always update DEMO_STAFF_MAP in-memory so staff can immediately log in
+    const staffCode = `STF${Math.floor(100 + Math.random() * 900)}`;
+    DEMO_STAFF_MAP[resolvedEmail] = {
+      role: standardRole,
+      name: resolvedName,
+      password: String(resolvedPassword),
+      memberId: staffCode,
+      phone: resolvedPhone,
+    };
+
+    console.log(`✅ [Staff Created] Enrolled staff: ${resolvedEmail} (${standardRole})`);
+
+    res.status(201).json({
+      success: true,
+      message: `Staff member enrolled successfully as ${standardRole.replace('_', ' ').toUpperCase()}`,
+      staff: {
+        id: userId || `usr_${Date.now()}`,
+        name: resolvedName,
+        email: resolvedEmail,
+        role: standardRole,
+        phone: resolvedPhone,
+        department: department || (standardRole === 'front_desk' ? 'Front Office' : standardRole === 'bar_staff' ? 'Food & Beverage' : standardRole === 'shop_staff' ? 'Pro Shop & Retail' : 'Management'),
+        monthlySalary: monthlySalary || 35000,
+        memberId: staffCode,
+      },
+    });
+  } catch (err: any) {
+    console.error('❌ Error creating employee:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
