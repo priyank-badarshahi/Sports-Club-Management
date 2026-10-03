@@ -6,20 +6,25 @@ dotenv.config();
 const rawUrl = process.env.SUPABASE_URL || '';
 // Remove trailing slashes and /rest/v1 if inadvertently included
 const supabaseUrl = rawUrl.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
-const supabaseKey = (
+const serviceKey = (
   process.env.SUPABASE_SECRET_KEY ||
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_PUBLISHABLE_KEY ||
   process.env.SUPABASE_ANON_KEY ||
   ''
 ).trim();
 
+const anonKey = (
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  serviceKey
+).trim();
+
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
-  supabaseKey &&
+  serviceKey &&
   supabaseUrl !== 'https://your-project.supabase.co' &&
   !supabaseUrl.includes('your-project') &&
-  !supabaseKey.includes('your-')
+  !serviceKey.includes('your-')
 );
 
 if (!isSupabaseConfigured) {
@@ -31,7 +36,26 @@ if (!isSupabaseConfigured) {
   console.log(`📡 Supabase configured with URL: ${supabaseUrl}`);
 }
 
+// Admin client for backend database operations and user provisioning (bypasses RLS)
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseKey || 'placeholder-key'
+  serviceKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
+);
+
+// Fresh isolated client for authenticating user credentials without polluting server session
+export const createAuthClient = () => createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  anonKey || serviceKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
 );

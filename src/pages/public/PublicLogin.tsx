@@ -1,40 +1,47 @@
 import React, { useState } from 'react';
 import { useClub } from '../../context/ClubContext';
-import { UserRole } from '../../types';
 import {
   Lock,
   Mail,
-  ShieldCheck,
   ArrowRight,
-  UserCheck,
   AlertCircle,
   Eye,
   EyeOff,
-  Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 export const PublicLogin: React.FC = () => {
-  const { login, setCurrentView, authMessage, setAuthMessage } = useClub();
+  const { login, setCurrentView, authMessage } = useClub();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError('Please enter your email or demo username.');
+    if (!email.trim()) {
+      setError('Please enter your email address or Member ID.');
       return;
     }
-    const res = login(email, password);
-    if (!res.success) {
-      setError(res.error || 'Invalid credentials');
+    if (!password) {
+      setError('Please enter your password.');
+      return;
     }
-  };
 
-  const handleDemoLogin = (role: UserRole) => {
-    login('', '', role);
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await login(email.trim(), password);
+      if (!res.success) {
+        setError(res.error || 'Invalid credentials. Please verify your email/Member ID and password.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Login failed. Please check your network and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,8 +73,9 @@ export const PublicLogin: React.FC = () => {
           </div>
 
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
-              {error}
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -81,13 +89,14 @@ export const PublicLogin: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. member@championsclub.demo or M001"
+                  placeholder="e.g. member@championsclub.com or M001"
                   value={email}
+                  disabled={loading}
                   onChange={(e) => {
                     setEmail(e.target.value);
                     setError(null);
                   }}
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans disabled:opacity-60"
                 />
               </div>
             </div>
@@ -99,7 +108,7 @@ export const PublicLogin: React.FC = () => {
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert('Password reset link sent to demo email address.')}
+                  onClick={() => alert('Password reset link sent to your registered email address.')}
                   className="text-[11px] text-blue-600 hover:underline"
                 >
                   Forgot Password?
@@ -109,10 +118,15 @@ export const PublicLogin: React.FC = () => {
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                  required
+                  placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans"
+                  disabled={loading}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError(null);
+                  }}
+                  className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans disabled:opacity-60"
                 />
                 <button
                   type="button"
@@ -129,6 +143,7 @@ export const PublicLogin: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={rememberMe}
+                  disabled={loading}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
@@ -138,69 +153,24 @@ export const PublicLogin: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-xs transition-all flex items-center justify-center gap-1.5"
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider shadow-xs transition-all flex items-center justify-center gap-1.5"
             >
-              <span>Login to Account</span>
-              <ArrowRight className="w-4 h-4" />
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verifying Credentials...</span>
+                </>
+              ) : (
+                <>
+                  <span>Login to Account</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
-          {/* Quick Demo Sign In for Reviewers */}
-          <div className="pt-4 border-t border-slate-100 space-y-3">
-            <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-slate-400">
-              <span className="flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                <span>One-Click Role Login</span>
-              </span>
-              <span className="text-[10px]">Evaluation Ready</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('member')}
-                className="p-2.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-900 font-semibold text-left transition-colors"
-              >
-                <div className="font-bold flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Member Portal</span>
-                </div>
-                <div className="text-[10px] text-blue-700">Rahul Patel (Gold)</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('owner')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-900 font-semibold text-left transition-colors"
-              >
-                <div className="font-bold flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-slate-700" />
-                  <span>Club Owner ERP</span>
-                </div>
-                <div className="text-[10px] text-slate-500">Full Executive Suite</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('frontdesk')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 text-left transition-colors"
-              >
-                <div className="font-semibold text-slate-900">Front Desk</div>
-                <div className="text-[10px] text-slate-500">Bookings & CRM</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('bar')}
-                className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 text-left transition-colors"
-              >
-                <div className="font-semibold text-slate-900">Bar & Cafe Staff</div>
-                <div className="text-[10px] text-slate-500">POS & Table Tabs</div>
-              </button>
-            </div>
-          </div>
-
-          <div className="text-center pt-2">
+          <div className="text-center pt-2 border-t border-slate-100">
             <span className="text-slate-500 text-xs">Don't have an account yet? </span>
             <button
               onClick={() => setCurrentView('public_signup')}

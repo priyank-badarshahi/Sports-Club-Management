@@ -74,7 +74,7 @@ interface ClubContextType {
   currentUser: UserProfile;
   isAuthenticated: boolean;
   switchRole: (role: UserRole) => void;
-  login: (email: string, password?: string, role?: UserRole) => { success: boolean; error?: string };
+  login: (email: string, password?: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
   signup: (data: { name: string; email: string; phone: string; password?: string; preferredSport?: string; dateOfBirth?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   authIntent: { view: AppView; extraData?: any; message?: string } | null;
@@ -255,76 +255,56 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = (email: string, password?: string, role?: UserRole): { success: boolean; error?: string } => {
-    let targetUser: UserProfile | undefined;
-    if (role && DEMO_USERS[role]) {
-      targetUser = DEMO_USERS[role];
-    } else {
-      const cleanEmail = email.trim().toLowerCase();
-      // Check if demo user
-      const matchedDemo = Object.values(DEMO_USERS).find(
-        (u) => u.email.toLowerCase() === cleanEmail || u.role.toLowerCase() === cleanEmail
-      );
-      if (matchedDemo) {
-        targetUser = matchedDemo;
-      } else {
-        // Check existing members
-        const matchedMember = members.find(
-          (m) => m.email.toLowerCase() === cleanEmail || m.memberId.toLowerCase() === cleanEmail
-        );
-        if (matchedMember) {
-          targetUser = {
-            id: matchedMember.id,
-            name: matchedMember.name,
-            email: matchedMember.email,
-            role: 'member',
-            memberId: matchedMember.memberId,
-            membershipPlan: matchedMember.plan,
-            phone: matchedMember.phone,
-          };
-        } else {
-          // Default to member profile for non-staff logins
-          targetUser = {
-            id: `usr_${Date.now()}`,
-            name: email.split('@')[0] ? email.split('@')[0].replace(/[\._]/g, ' ') : 'Club Member',
-            email: cleanEmail,
-            role: 'member',
-            memberId: 'M001',
-            membershipPlan: 'Gold',
-          };
-        }
+  const login = async (email: string, password?: string, role?: UserRole): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        return { success: false, error: result.error || 'Invalid credentials' };
       }
-    }
 
-    setCurrentUser(targetUser);
-    setIsAuthenticated(true);
-    setAuthMessage(null);
+      const targetUser: UserProfile = result.user;
+      setCurrentUser(targetUser);
+      setIsAuthenticated(true);
+      setAuthMessage(null);
 
-    // If an action was interrupted (e.g. court booking or checkout), restore that destination!
-    if (authIntent) {
-      const returnView = authIntent.view;
-      setCurrentView(returnView);
+      // If an action was interrupted (e.g. court booking or checkout), restore that destination!
+      if (authIntent) {
+        const returnView = authIntent.view;
+        setCurrentView(returnView);
+        return { success: true };
+      }
+
+      // Role-based default destination from database
+      if (targetUser.role === 'member') {
+        setCurrentView('member_portal');
+      } else if (targetUser.role === 'owner') {
+        setCurrentView('admin_dashboard');
+      } else if (targetUser.role === 'frontdesk') {
+        setCurrentView('admin_bookings');
+      } else if (targetUser.role === 'shop') {
+        setCurrentView('admin_shop');
+      } else if (targetUser.role === 'bar') {
+        setCurrentView('admin_bar');
+      } else if (targetUser.role === 'manager') {
+        setCurrentView('admin_employees');
+      } else {
+        setCurrentView('member_portal');
+      }
+
       return { success: true };
+    } catch (err: any) {
+      console.error('Authentication network error:', err);
+      return { success: false, error: 'Could not connect to authentication server. Please check connection.' };
     }
-
-    // Role-based default destination
-    if (targetUser.role === 'member') {
-      setCurrentView('member_portal');
-    } else if (targetUser.role === 'owner') {
-      setCurrentView('admin_dashboard');
-    } else if (targetUser.role === 'frontdesk') {
-      setCurrentView('admin_bookings');
-    } else if (targetUser.role === 'shop') {
-      setCurrentView('admin_shop');
-    } else if (targetUser.role === 'bar') {
-      setCurrentView('admin_bar');
-    } else if (targetUser.role === 'manager') {
-      setCurrentView('admin_employees');
-    } else {
-      setCurrentView('public_home');
-    }
-
-    return { success: true };
   };
 
   const signup = async (data: {
