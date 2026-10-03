@@ -1990,7 +1990,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       status: 'delivered',
     };
 
+    const isCurrent =
+      Boolean(get().currentUser.memberId && get().currentUser.memberId === memberId) ||
+      Boolean(get().currentUser.email && member.email && get().currentUser.email.toLowerCase() === member.email.toLowerCase());
+
     set((state) => ({
+      currentUser: isCurrent ? { ...state.currentUser, tier: newTier } : state.currentUser,
       members: state.members.map((m) =>
         m.id === memberId
           ? {
@@ -2004,6 +2009,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       invoices: [upgradeInvoice, ...state.invoices],
       payments: [upgradePayment, ...state.payments],
     }));
+
+    // Sync to backend database
+    fetch('/api/user/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: member.email,
+        tier: newTier,
+        plan: newTier === 'gold' ? 'Gold' : newTier === 'silver' ? 'Silver' : newTier === 'junior' ? 'Junior' : 'Walk-in',
+      }),
+    }).catch((err) => console.warn('Could not sync upgrade to backend profile:', err));
 
     get().addToast({
       type: 'success',
@@ -4387,7 +4403,20 @@ export const useAppStore = create<AppState>((set, get) => ({
             (m) => !dbIds.has(m.id) && (!m.email || !dbEmails.has(m.email.toLowerCase()))
           );
           
-          set({ members: [...data.members, ...remaining] });
+          const syncedMembers = [...data.members, ...remaining];
+          const current = get().currentUser;
+          const matchingMember = syncedMembers.find(
+            (m: any) =>
+              (current.memberId && m.id === current.memberId) ||
+              (current.email && m.email && current.email.toLowerCase() === m.email.toLowerCase())
+          );
+
+          set({
+            members: syncedMembers,
+            currentUser: (matchingMember && current.role === 'member')
+              ? { ...current, tier: matchingMember.tier || 'walk_in' }
+              : current,
+          });
           persist(get());
           console.log(`✅ [Zustand] Synced ${data.members.length} members from Supabase database`);
         }

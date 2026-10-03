@@ -5,7 +5,7 @@ import { MemberBottomNav } from '../components/MemberBottomNav';
 import { ToastContainer } from '../components/ToastContainer';
 import { GlobalSearchModal } from '../components/GlobalSearchModal';
 import { useAppStore } from '../store';
-import { Home, CalendarPlus, ShoppingBag, Coffee, User, ShieldCheck, LogIn } from 'lucide-react';
+import { Home, CalendarPlus, ShoppingBag, Coffee, User, ShieldCheck, LogIn, Sparkles } from 'lucide-react';
 import { getTierBadgeClass, getTierName, formatINR } from '../lib/formatters';
 
 export const MemberLayout: React.FC = () => {
@@ -22,7 +22,7 @@ export const MemberLayout: React.FC = () => {
          email: currentUser.email || '',
          phone: currentUser.phone || '',
          avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-         tier: currentUser.tier || 'none',
+         tier: currentUser.tier || 'walk_in',
          status: 'active' as const,
          joinDate: new Date().toISOString().split('T')[0],
          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -65,9 +65,13 @@ export const MemberLayout: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="font-heading font-bold text-sm text-white">{currentMember.fullName}</h2>
-                    {currentMember.tier && currentMember.tier !== 'none' && currentMember.tier !== 'walk_in' && (
+                    {currentMember.tier && currentMember.tier !== 'none' && currentMember.tier !== 'walk_in' ? (
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${getTierBadgeClass(currentMember.tier)}`}>
                         {getTierName(currentMember.tier)}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium border border-slate-700">
+                        Walk-in Member
                       </span>
                     )}
                   </div>
@@ -93,6 +97,19 @@ export const MemberLayout: React.FC = () => {
                   <h2 className="font-heading font-bold text-sm text-white">Guest / Visitor</h2>
                   <p className="text-[11px] text-slate-400">Please log in or sign up to access member privileges.</p>
                 </div>
+              </div>
+            )}
+
+            {/* Choose Membership Tier CTA for Walk-in Members */}
+            {isMember && currentMember && (currentMember.tier === 'walk_in' || currentMember.tier === 'none') && (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/plans"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-110 text-slate-950 font-bold text-xs shadow-md shadow-amber-400/20 transition flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Choose Membership Tier</span>
+                </Link>
               </div>
             )}
 

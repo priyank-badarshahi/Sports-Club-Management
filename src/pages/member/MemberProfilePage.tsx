@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import {
   Trophy,
@@ -49,7 +50,7 @@ export const MemberProfilePage: React.FC = () => {
       email: currentUser.email || '',
       phone: currentUser.phone || '',
       avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-      tier: currentUser.tier || 'none',
+      tier: currentUser.tier || 'walk_in',
       status: 'active' as const,
       joinDate: new Date().toISOString().split('T')[0],
       expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -289,9 +290,18 @@ export const MemberProfilePage: React.FC = () => {
                     {getTierName(currentMember.tier)}
                   </span>
                 ) : (
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold border border-slate-700">
-                    No Membership Plan
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold border border-slate-700">
+                      Walk-in Member
+                    </span>
+                    <Link
+                      to="/plans"
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold hover:brightness-110 shadow-sm shadow-amber-400/20 transition flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Upgrade</span>
+                    </Link>
+                  </div>
                 )}
                 <span className="text-xs font-bold text-lime-400">Official Pass</span>
               </div>
@@ -339,19 +349,32 @@ export const MemberProfilePage: React.FC = () => {
             <span className="text-slate-500 uppercase text-[10px] font-bold block">Club Wallet</span>
             <span className="text-white font-semibold">{formatINR(currentMember.walletBalance)}</span>
           </div>
-          <div className="flex items-center justify-end">
-            <button
-              onClick={() => {
-                addToast({
-                  type: 'success',
-                  title: 'Membership Renewal Order Created',
-                  message: `Renewal invoice generated for ${getTierName(currentMember.tier)}. Valid until Oct 2027.`,
-                });
-              }}
-              className="px-4 py-2 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs shadow-md shadow-lime-400/20 transition"
+          <div className="flex items-center justify-end gap-2">
+            <Link
+              to="/plans"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-110 text-slate-950 font-bold text-xs shadow-md shadow-amber-400/20 transition flex items-center gap-1.5"
             >
-              Renew Membership
-            </button>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>
+                {currentMember.tier === 'walk_in' || currentMember.tier === 'none'
+                  ? 'Purchase Membership'
+                  : 'Upgrade / Change Plan'}
+              </span>
+            </Link>
+            {currentMember.tier && currentMember.tier !== 'walk_in' && currentMember.tier !== 'none' && (
+              <button
+                onClick={() => {
+                  addToast({
+                    type: 'success',
+                    title: 'Membership Renewal Order Created',
+                    message: `Renewal invoice generated for ${getTierName(currentMember.tier)}. Valid until Oct 2027.`,
+                  });
+                }}
+                className="px-4 py-2 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs shadow-md shadow-lime-400/20 transition"
+              >
+                Renew Membership
+              </button>
+            )}
           </div>
         </div>
       </div>

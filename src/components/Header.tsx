@@ -408,10 +408,23 @@ export const Header: React.FC<HeaderProps> = ({
                       {currentRole.replace('_', ' ')}
                     </span>
                   </div>
-                  {currentRole === 'member' && currentUser.tier && currentUser.tier !== 'none' && currentUser.tier !== 'walk_in' && (
+                  {currentRole === 'member' && (
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400">Membership Tier:</span>
-                      <span className="font-semibold uppercase text-amber-400">{currentUser.tier}</span>
+                      {currentUser.tier && currentUser.tier !== 'none' && currentUser.tier !== 'walk_in' ? (
+                        <span className="font-semibold uppercase text-amber-400">{currentUser.tier}</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-300 font-medium">Walk-in</span>
+                          <Link
+                            to="/plans"
+                            onClick={() => setRoleDropdownOpen(false)}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-bold hover:bg-amber-300 transition"
+                          >
+                            Upgrade
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

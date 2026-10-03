@@ -53,7 +53,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
       rawPlan === 'gold' ? 'Gold' :
       rawPlan === 'silver' ? 'Silver' :
       rawPlan === 'junior' ? 'Junior' :
-      'None';
+      'Walk-in';
 
     // Validate inputs
     if (!resolvedName || !resolvedEmail || !resolvedPhone || !resolvedPassword) {
@@ -161,7 +161,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
           role: 'member',
           phone: cleanPhone,
           member_id: memberId,
-          membership_plan: resolvedPlan === 'None' ? null : resolvedPlan,
+          membership_plan: (resolvedPlan === 'Walk-in' || resolvedPlan === 'None') ? null : resolvedPlan,
         });
 
       if (profileError) {
@@ -173,39 +173,55 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
         return;
       }
 
-      // 4. Insert into 'members' table
-      const memberPayload = {
-        member_id: memberId,
-        user_id: userId,
-        name: resolvedName,
-        email: cleanEmail,
-        phone: cleanPhone,
-        date_of_birth: resolvedDob,
-        plan: resolvedPlan,
-        start_date: todayStr,
-        expiry_date: expiryStr,
-        status: 'active',
-        discount_rate: discountRate,
-        total_bookings: 0,
-        total_spent: 0,
-      };
+      // 4. Insert into 'members' table if user registered with a paid membership tier
+      let memberData: any = null;
+      if (resolvedPlan === 'Gold' || resolvedPlan === 'Silver' || resolvedPlan === 'Junior') {
+        const memberPayload = {
+          member_id: memberId,
+          user_id: userId,
+          name: resolvedName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          date_of_birth: resolvedDob,
+          plan: resolvedPlan,
+          start_date: todayStr,
+          expiry_date: expiryStr,
+          status: 'active',
+          discount_rate: discountRate,
+          total_bookings: 0,
+          total_spent: 0,
+        };
 
-      const { data: memberData, error: memberError } = await supabase
-        .from('members')
-        .insert(memberPayload)
-        .select()
-        .single();
+        const { data: insertedMember, error: memberError } = await supabase
+          .from('members')
+          .insert(memberPayload)
+          .select()
+          .single();
 
-      if (memberError) {
-        console.error('❌ Supabase members table insert error:', memberError);
-        res.status(500).json({
-          success: false,
-          error: `Could not save member record: ${memberError.message}`,
-        });
-        return;
+        if (memberError) {
+          console.error('❌ Supabase members table insert error:', memberError);
+        } else {
+          memberData = insertedMember;
+        }
+      } else {
+        memberData = {
+          member_id: memberId,
+          user_id: userId,
+          name: resolvedName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          plan: 'Walk-in',
+          date_of_birth: resolvedDob,
+          start_date: todayStr,
+          expiry_date: expiryStr,
+          status: 'active',
+          discount_rate: 0,
+          total_bookings: 0,
+          total_spent: 0,
+        };
       }
 
-      console.log(`✅ [Supabase] User registered successfully: ${cleanEmail} (${memberId})`);
+      console.log(`✅ [Supabase] User registered successfully: ${cleanEmail} (${memberId}) - Plan: ${resolvedPlan}`);
 
       res.status(201).json({
         success: true,
@@ -217,7 +233,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
           phone: cleanPhone,
           role: 'member',
           memberId,
-          membershipPlan: resolvedPlan === 'None' ? undefined : resolvedPlan,
+          membershipPlan: resolvedPlan,
         },
         member: memberData,
       });
@@ -238,7 +254,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
         phone: cleanPhone,
         role: 'member',
         memberId: fallbackMemberId,
-        membershipPlan: resolvedPlan === 'None' ? undefined : resolvedPlan,
+        membershipPlan: resolvedPlan,
       },
       member: {
         id: `mem_${Date.now()}`,
@@ -349,9 +365,11 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
         const name = profile?.name || member?.name || authData.user.user_metadata?.name || targetEmail.split('@')[0];
         const memberId = role === 'member' ? (profile?.member_id || member?.member_id || 'M001') : (profile?.member_id || 'STF001');
         const rawPlan = profile?.membership_plan || member?.plan;
+        const rawPlanLower = String(rawPlan || '').toLowerCase();
+        const hasPaidPlan = Boolean(rawPlan && !['none', 'walk-in', 'walk_in', 'standard'].includes(rawPlanLower));
         const membershipPlan =
-          role === 'member' && rawPlan && rawPlan !== 'None' && rawPlan !== 'none'
-            ? rawPlan
+          role === 'member'
+            ? (hasPaidPlan ? rawPlan : 'Walk-in')
             : undefined;
         const phone = profile?.phone || member?.phone || '';
 
@@ -437,6 +455,8 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
       emergencyContact,
       currentPassword,
       newPassword,
+      plan,
+      tier,
     } = req.body;
 
     const resolvedEmail = String(email || '').trim().toLowerCase();
@@ -448,6 +468,24 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
     const resolvedName = (fullName || name || '').trim();
     const resolvedPhone = (phone || '').trim();
     const resolvedAvatar = (avatarUrl || avatar || '').trim();
+    const rawPlan = String(plan || tier || '').trim().toLowerCase();
+    let resolvedPlan: string | undefined;
+    let resolvedDiscountRate: number | undefined;
+    if (rawPlan) {
+      if (rawPlan === 'gold') {
+        resolvedPlan = 'Gold';
+        resolvedDiscountRate = 0.20;
+      } else if (rawPlan === 'silver') {
+        resolvedPlan = 'Silver';
+        resolvedDiscountRate = 0.10;
+      } else if (rawPlan === 'junior') {
+        resolvedPlan = 'Junior';
+        resolvedDiscountRate = 0.15;
+      } else {
+        resolvedPlan = 'Walk-in';
+        resolvedDiscountRate = 0;
+      }
+    }
     let passwordUpdated = false;
 
     // 1. Password change requested
@@ -585,6 +623,9 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
       if (resolvedName) profileUpdates.name = resolvedName;
       if (resolvedPhone) profileUpdates.phone = resolvedPhone;
       if (resolvedAvatar) profileUpdates.avatar_url = resolvedAvatar;
+      if (resolvedPlan) {
+        profileUpdates.membership_plan = (resolvedPlan === 'Walk-in' || resolvedPlan === 'None') ? null : resolvedPlan;
+      }
 
       if (Object.keys(profileUpdates).length > 0) {
         if (targetUserId) {
@@ -593,22 +634,58 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
         await supabase.from('profiles').update(profileUpdates).ilike('email', resolvedEmail);
       }
 
-      // Update public.members table
-      const memberUpdates: any = {};
-      if (resolvedName) memberUpdates.name = resolvedName;
-      if (resolvedPhone) memberUpdates.phone = resolvedPhone;
-      if (resolvedAvatar) memberUpdates.avatar_url = resolvedAvatar;
-      if (dateOfBirth) memberUpdates.date_of_birth = dateOfBirth;
-      if (emergencyContact) {
-        memberUpdates.emergency_contact =
-          typeof emergencyContact === 'string' ? emergencyContact : JSON.stringify(emergencyContact);
-      }
+      // Update or insert into public.members table
+      const isPaidPlan = resolvedPlan === 'Gold' || resolvedPlan === 'Silver' || resolvedPlan === 'Junior';
+      const { data: existingMem } = await supabase
+        .from('members')
+        .select('*')
+        .or(`email.ilike.${resolvedEmail},user_id.eq.${targetUserId || '00000000-0000-0000-0000-000000000000'}`)
+        .maybeSingle();
 
-      if (Object.keys(memberUpdates).length > 0) {
-        if (targetUserId) {
-          await supabase.from('members').update(memberUpdates).eq('user_id', targetUserId);
+      if (existingMem) {
+        const memberUpdates: any = {};
+        if (resolvedName) memberUpdates.name = resolvedName;
+        if (resolvedPhone) memberUpdates.phone = resolvedPhone;
+        if (resolvedAvatar) memberUpdates.avatar_url = resolvedAvatar;
+        if (dateOfBirth) memberUpdates.date_of_birth = dateOfBirth;
+        if (isPaidPlan) {
+          memberUpdates.plan = resolvedPlan;
+          if (resolvedDiscountRate !== undefined) {
+            memberUpdates.discount_rate = resolvedDiscountRate;
+          }
         }
-        await supabase.from('members').update(memberUpdates).ilike('email', resolvedEmail);
+        if (emergencyContact) {
+          memberUpdates.emergency_contact =
+            typeof emergencyContact === 'string' ? emergencyContact : JSON.stringify(emergencyContact);
+        }
+
+        if (Object.keys(memberUpdates).length > 0) {
+          await supabase.from('members').update(memberUpdates).eq('id', existingMem.id);
+        }
+      } else if (isPaidPlan) {
+        // Newly purchased paid tier for a previously walk-in member
+        const todayStr = new Date().toISOString().split('T')[0];
+        const expiryDateObj = new Date();
+        expiryDateObj.setFullYear(expiryDateObj.getFullYear() + 1);
+        const expiryStr = expiryDateObj.toISOString().split('T')[0];
+        const assignedMemberId = prof?.member_id || `M${Math.floor(100 + Math.random() * 900)}`;
+
+        await supabase.from('members').insert({
+          member_id: assignedMemberId,
+          user_id: targetUserId,
+          name: resolvedName || prof?.name || 'Club Member',
+          email: resolvedEmail,
+          phone: resolvedPhone || prof?.phone || '+91 98765 43210',
+          date_of_birth: dateOfBirth || '2000-01-01',
+          plan: resolvedPlan,
+          start_date: todayStr,
+          expiry_date: expiryStr,
+          status: 'active',
+          discount_rate: resolvedDiscountRate || 0.10,
+          total_bookings: 0,
+          total_spent: 0,
+          emergency_contact: emergencyContact ? (typeof emergencyContact === 'string' ? emergencyContact : JSON.stringify(emergencyContact)) : null,
+        });
       }
 
       // Update public.employees table if user is an employee
@@ -623,15 +700,18 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
       }
     }
 
-    console.log(`✅ [Profile Update] Successfully updated profile for ${resolvedEmail}`);
+    console.log(`✅ [Profile Update] Successfully updated profile for ${resolvedEmail}${resolvedPlan ? ` (Plan: ${resolvedPlan})` : ''}`);
     res.json({
       success: true,
       message: passwordUpdated ? 'Profile and password updated successfully!' : 'Profile details saved successfully!',
       passwordUpdated,
+      plan: resolvedPlan,
+      tier: resolvedPlan ? resolvedPlan.toLowerCase() : undefined,
       user: {
         name: resolvedName,
         phone: resolvedPhone,
         avatar: resolvedAvatar,
+        membershipPlan: resolvedPlan,
       },
     });
   } catch (err: any) {
@@ -654,7 +734,7 @@ function formatMemberForClient(m: any) {
     tierRaw === 'gold' ? 'gold' :
     tierRaw === 'junior' ? 'junior' :
     tierRaw === 'silver' ? 'silver' :
-    'none';
+    'walk_in';
 
   let emergencyContact = { name: 'Emergency Contact', phone: m.phone || '', relation: 'Family' };
   if (typeof m.emergency_contact === 'string') {
@@ -694,18 +774,47 @@ function formatMemberForClient(m: any) {
   };
 }
 
-// Fetch all registered members from Supabase
+// Fetch all registered members from Supabase (including walk-in members from profiles)
 app.get('/api/members', async (req: Request, res: Response) => {
   try {
     if (isSupabaseConfigured) {
-      const { data, error } = await supabase
+      const { data: memData, error: memErr } = await supabase
         .from('members')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      const formattedMembers = (data || []).map(formatMemberForClient);
-      res.json({ success: true, members: formattedMembers, rawMembers: data });
+      const { data: profData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'member');
+
+      if (memErr) throw memErr;
+
+      const memberEmails = new Set((memData || []).map((m: any) => m.email?.toLowerCase()).filter(Boolean));
+      const memberIds = new Set((memData || []).map((m: any) => m.member_id).filter(Boolean));
+
+      // Include walk-in members from profiles table who don't yet have a paid plan in members table
+      const walkinFromProfiles = (profData || [])
+        .filter((p: any) => !memberEmails.has(p.email?.toLowerCase()) && !memberIds.has(p.member_id))
+        .map((p: any) => ({
+          id: p.id,
+          member_id: p.member_id || 'M000',
+          user_id: p.id,
+          name: p.name || 'Walk-in Member',
+          email: p.email,
+          phone: p.phone || '',
+          plan: 'Walk-in',
+          status: 'active',
+          avatar_url: p.avatar_url,
+          created_at: p.created_at,
+          start_date: p.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+          expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          wallet_balance: 0,
+        }));
+
+      const allMembers = [...(memData || []), ...walkinFromProfiles];
+      const formattedMembers = allMembers.map(formatMemberForClient);
+      res.json({ success: true, members: formattedMembers, rawMembers: allMembers });
       return;
     }
 
@@ -735,8 +844,12 @@ app.post('/api/members', async (req: Request, res: Response): Promise<void> => {
     const resolvedName = (fullName || name || '').trim();
     const resolvedEmail = (email || '').trim().toLowerCase();
     const resolvedPhone = (phone || '').trim();
-    const rawPlan = String(plan || tier || 'Silver').toLowerCase();
-    const resolvedPlan = rawPlan === 'gold' ? 'Gold' : rawPlan === 'junior' ? 'Junior' : 'Silver';
+    const rawPlan = String(plan || tier || 'Walk-in').toLowerCase();
+    const resolvedPlan =
+      rawPlan === 'gold' ? 'Gold' :
+      rawPlan === 'junior' ? 'Junior' :
+      rawPlan === 'silver' ? 'Silver' :
+      'Walk-in';
 
     if (!resolvedName || !resolvedEmail) {
       res.status(400).json({ success: false, error: 'Name and email are required.' });
@@ -759,6 +872,7 @@ app.post('/api/members', async (req: Request, res: Response): Promise<void> => {
       const memberId = `M${String(maxNum + 1).padStart(3, '0')}`;
       const todayStr = startDate || new Date().toISOString().split('T')[0];
       const expiryStr = expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const discountRate = resolvedPlan === 'Gold' ? 0.20 : resolvedPlan === 'Junior' ? 0.15 : resolvedPlan === 'Silver' ? 0.10 : 0;
 
       const memberPayload = {
         member_id: memberId,
@@ -771,9 +885,9 @@ app.post('/api/members', async (req: Request, res: Response): Promise<void> => {
         start_date: todayStr,
         expiry_date: expiryStr,
         status: 'active',
-        discount_rate: resolvedPlan === 'Gold' ? 0.20 : resolvedPlan === 'Junior' ? 0.15 : 0.10,
+        discount_rate: discountRate,
         total_bookings: 0,
-        total_spent: resolvedPlan === 'Gold' ? 45000 : 28000,
+        total_spent: 0,
         emergency_contact: emergencyContact ? (typeof emergencyContact === 'string' ? emergencyContact : JSON.stringify(emergencyContact)) : null,
       };
 

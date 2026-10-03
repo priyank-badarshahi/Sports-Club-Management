@@ -31,7 +31,7 @@ export const MemberHomePage: React.FC = () => {
       email: currentUser.email || '',
       phone: currentUser.phone || '',
       avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-      tier: currentUser.tier || 'none',
+      tier: currentUser.tier || 'walk_in',
       status: 'active' as const,
       joinDate: new Date().toISOString().split('T')[0],
       expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -102,9 +102,18 @@ export const MemberHomePage: React.FC = () => {
                     {getTierName(currentMember.tier)}
                   </span>
                 ) : (
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold border border-slate-700">
-                    Standard Member
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold border border-slate-700">
+                      Walk-in Member
+                    </span>
+                    <Link
+                      to="/plans"
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold hover:brightness-110 shadow-sm shadow-amber-400/20 transition flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Upgrade Plan</span>
+                    </Link>
+                  </div>
                 )}
                 <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -152,6 +161,35 @@ export const MemberHomePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Walk-in Member Plan Upgrade Banner */}
+      {(currentMember.tier === 'walk_in' || currentMember.tier === 'none') && (
+        <div className="rounded-3xl p-6 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-lime-500/10 border border-amber-400/40 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-400 flex items-center justify-center shrink-0">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                Exclusive Member Privileges
+              </span>
+              <h3 className="font-heading font-extrabold text-lg text-white">
+                You are currently a Walk-in Member
+              </h3>
+              <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                Choose a membership tier (Silver, Gold, or Junior) to unlock up to 75% court discounts, 14-day advance bookings, café bar tabs, pro shop savings, and free monthly guest passes!
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/plans"
+            className="px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-lg shadow-amber-400/20 flex items-center justify-center gap-2 shrink-0 transition"
+          >
+            <span>Choose Membership Plan</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
 
       {/* Quick Action Buttons */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

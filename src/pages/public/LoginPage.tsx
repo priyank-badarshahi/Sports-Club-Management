@@ -101,8 +101,9 @@ export const LoginPage: React.FC = () => {
 
       const isMember = matchedRole === 'member';
       const rawPlan = result.user?.membershipPlan;
-      const hasPlan = isMember && rawPlan && rawPlan !== 'None' && rawPlan !== 'none';
-      const tier = hasPlan ? ((String(rawPlan).toLowerCase()) as MembershipTier) : undefined;
+      const planStr = String(rawPlan || '').toLowerCase();
+      const hasPaidPlan = Boolean(isMember && rawPlan && !['none', 'walk-in', 'walk_in', 'standard'].includes(planStr));
+      const tier: MembershipTier = hasPaidPlan ? (planStr as MembershipTier) : 'walk_in';
       const memberId = isMember ? (result.user?.memberId || `M${Math.floor(100 + Math.random() * 900)}`) : undefined;
 
       // Ensure member profile exists in Zustand client store for seamless navigation
@@ -121,7 +122,7 @@ export const LoginPage: React.FC = () => {
               email: result.user.email,
               phone: result.user.phone || '+91 98765 43210',
               avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-              tier: tier || 'none',
+              tier: tier || 'walk_in',
               status: 'active',
               joinDate: new Date().toISOString().split('T')[0],
               expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -241,7 +242,8 @@ export const LoginPage: React.FC = () => {
           password: password,
           dob: dob,
           sport: sport,
-          plan: 'None',
+          plan: 'Walk-in',
+          tier: 'walk_in',
         }),
       });
 
@@ -265,7 +267,7 @@ export const LoginPage: React.FC = () => {
         phone: phone.trim(),
         email: email.trim(),
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-        tier: 'none',
+        tier: 'walk_in',
         preferredSports: [sport as any],
         status: 'active' as const,
         joinDate: new Date().toISOString().split('T')[0],
@@ -293,7 +295,7 @@ export const LoginPage: React.FC = () => {
         email: email.trim(),
         role: 'member',
         avatar: newMemberData.avatar,
-        tier: undefined,
+        tier: 'walk_in',
         memberId: assignedMemberId
       });
 

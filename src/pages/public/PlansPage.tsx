@@ -26,8 +26,18 @@ import { formatINR, getTierBadgeClass, getTierName } from '../../lib/formatters'
 
 export const PlansPage: React.FC = () => {
   const navigate = useNavigate();
-  const { plans, registerMember, setRole, setCurrentUser } = useAppStore();
+  const { plans, registerMember, upgradeMember, setRole, setCurrentUser, currentUser, members } = useAppStore();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'annual'>('annual');
+
+  const isMemberLoggedIn = currentUser.role === 'member';
+  const currentMember = isMemberLoggedIn
+    ? members.find(
+        (m) =>
+          Boolean(currentUser.memberId && m.id === currentUser.memberId) ||
+          Boolean(currentUser.email && m.email?.toLowerCase() === currentUser.email?.toLowerCase())
+      )
+    : null;
+  const userCurrentTier: MembershipTier = currentMember?.tier || currentUser.tier || (isMemberLoggedIn ? 'walk_in' : 'none');
 
   // Multi-step modal state
   const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4 | null>(null);
@@ -55,6 +65,18 @@ export const PlansPage: React.FC = () => {
 
   const handleJoinClick = (tier: MembershipTier) => {
     setSelectedTier(tier);
+    if (isMemberLoggedIn) {
+      setForm((prev) => ({
+        ...prev,
+        fullName: currentMember?.fullName || currentUser.name || prev.fullName,
+        email: currentMember?.email || currentUser.email || prev.email,
+        phone: currentMember?.phone || currentUser.phone || prev.phone,
+        dateOfBirth: currentMember?.dateOfBirth || prev.dateOfBirth,
+        emergencyName: currentMember?.emergencyContact?.name || prev.emergencyName,
+        emergencyPhone: currentMember?.emergencyContact?.phone || prev.emergencyPhone,
+        preferredSport: currentMember?.preferredSports?.[0] || prev.preferredSport,
+      }));
+    }
     setActiveStep(1);
   };
 
@@ -97,6 +119,40 @@ export const PlansPage: React.FC = () => {
     else if (billingCycle === 'quarterly') expiry.setMonth(expiry.getMonth() + 3);
     else expiry.setMonth(expiry.getMonth() + 1);
 
+    // If member is already logged in, upgrade them directly
+    if (isMemberLoggedIn && currentMember) {
+      upgradeMember(currentMember.id, selectedTier, totalAmount, result.method);
+      const invoiceNumber = `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      setCurrentUser({
+        ...currentUser,
+        tier: selectedTier,
+      });
+
+      // Synchronize with backend DB
+      fetch('/api/user/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentMember.email || currentUser.email,
+          tier: selectedTier,
+          plan: selectedTier === 'gold' ? 'Gold' : selectedTier === 'silver' ? 'Silver' : selectedTier === 'junior' ? 'Junior' : 'Walk-in',
+        }),
+      }).catch((err) => console.warn('Could not sync upgrade to backend profile:', err));
+
+      setCreatedResult({
+        member: {
+          ...currentMember,
+          tier: selectedTier,
+          expiryDate: expiry.toISOString().split('T')[0],
+        },
+        invoiceNumber,
+      });
+      setActiveStep(4);
+      return;
+    }
+
+    // New visitor enrollment flow
     const { member, invoice } = registerMember(
       {
         fullName: form.fullName,
@@ -137,17 +193,22 @@ export const PlansPage: React.FC = () => {
 
   const handleCompleteAndLogin = () => {
     if (createdResult) {
-      setCurrentUser({
-        name: createdResult.member.fullName,
-        email: createdResult.member.email,
-        role: 'member',
-        avatar: createdResult.member.avatar,
-        memberId: createdResult.member.id,
-        tier: createdResult.member.tier,
-      });
-      setRole('member');
-      setActiveStep(null);
-      navigate('/member/home');
+      if (isMemberLoggedIn) {
+        setActiveStep(null);
+        navigate('/member/home');
+      } else {
+        setCurrentUser({
+          name: createdResult.member.fullName,
+          email: createdResult.member.email,
+          role: 'member',
+          avatar: createdResult.member.avatar,
+          memberId: createdResult.member.id,
+          tier: createdResult.member.tier,
+        });
+        setRole('member');
+        setActiveStep(null);
+        navigate('/member/home');
+      }
     }
   };
 
@@ -289,21 +350,32 @@ export const PlansPage: React.FC = () => {
         {plans.map((plan) => {
           const isGold = plan.tier === 'gold';
           const isWalkIn = plan.tier === 'walk_in';
+          const isCurrentPlan = isMemberLoggedIn && (
+            userCurrentTier === plan.tier ||
+            (userCurrentTier === 'none' && isWalkIn)
+          );
 
           return (
             <div
               key={plan.id}
               className={`rounded-3xl p-6 sm:p-8 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
-                isGold
+                isCurrentPlan
+                  ? 'bg-slate-900/90 border-2 border-emerald-500/60 shadow-xl'
+                  : isGold
                   ? 'bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 border-amber-400/60 shadow-2xl shadow-amber-500/10 scale-105 z-10'
                   : 'bg-slate-900/90 border border-slate-800 hover:border-slate-700 shadow-xl'
               }`}
             >
-              {isGold && (
+              {isCurrentPlan ? (
+                <div className="absolute top-0 right-0 bg-emerald-500 text-slate-950 font-extrabold text-[10px] uppercase px-4 py-1 rounded-bl-2xl tracking-widest shadow-md flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  <span>Current Plan</span>
+                </div>
+              ) : isGold ? (
                 <div className="absolute top-0 right-0 bg-amber-400 text-slate-950 font-extrabold text-[10px] uppercase px-4 py-1 rounded-bl-2xl tracking-widest shadow-md">
                   Most Popular
                 </div>
-              )}
+              ) : null}
 
               <div>
                 <span className={`text-[10px] uppercase px-2.5 py-1 rounded-full w-fit block mb-3 ${getTierBadgeClass(plan.tier)}`}>
@@ -347,17 +419,40 @@ export const PlansPage: React.FC = () => {
 
               {/* Action Button */}
               <button
+                disabled={isCurrentPlan}
                 onClick={() => handleJoinClick(plan.tier)}
                 className={`w-full py-3.5 rounded-2xl font-extrabold text-xs transition flex items-center justify-center gap-2 shadow-lg ${
-                  isGold
+                  isCurrentPlan
+                    ? 'bg-slate-800 text-slate-400 border border-slate-700 cursor-default'
+                    : isGold
                     ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-400/20'
                     : isWalkIn
                     ? 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                     : 'bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-lime-400/20'
                 }`}
               >
-                <span>{isWalkIn ? 'Create Free Guest Account' : 'Join Now'}</span>
-                <ArrowRight className="w-4 h-4" />
+                {isCurrentPlan ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>Current Active Plan</span>
+                  </>
+                ) : isMemberLoggedIn ? (
+                  <>
+                    <span>
+                      {isWalkIn
+                        ? 'Select Walk-in Tier'
+                        : userCurrentTier === 'walk_in' || userCurrentTier === 'none'
+                        ? `Purchase ${plan.name} Plan`
+                        : `Upgrade to ${plan.name}`}
+                    </span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    <span>{isWalkIn ? 'Create Free Guest Account' : 'Join Now'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           );
@@ -412,13 +507,13 @@ export const PlansPage: React.FC = () => {
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-lime-400">
-                  Step {activeStep} of 4 • Online Membership Sign-up
+                  {isMemberLoggedIn ? `Membership Plan Upgrade • Step ${activeStep} of 4` : `Step ${activeStep} of 4 • Online Membership Sign-up`}
                 </span>
                 <h3 className="font-heading font-extrabold text-xl text-white mt-0.5">
                   {activeStep === 1 && '1. Choose Plan & Billing Period'}
                   {activeStep === 2 && '2. Member Identity & Demographics'}
                   {activeStep === 3 && '3. Payment & Settlement'}
-                  {activeStep === 4 && '4. Passport Credentials Issued'}
+                  {activeStep === 4 && (isMemberLoggedIn ? '4. Membership Plan Activated' : '4. Passport Credentials Issued')}
                 </h3>
               </div>
               <button
@@ -489,13 +584,22 @@ export const PlansPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex items-center justify-between gap-2 pt-2">
+                  {isMemberLoggedIn && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveStep(2)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs hover:text-white transition flex items-center gap-1.5"
+                    >
+                      <span>Review Details</span>
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => setActiveStep(2)}
-                    className="px-6 py-3 rounded-2xl bg-lime-400 text-slate-950 font-bold text-xs shadow-lg shadow-lime-400/20 flex items-center gap-2"
+                    onClick={() => setActiveStep(isMemberLoggedIn ? 3 : 2)}
+                    className="ml-auto px-6 py-3 rounded-2xl bg-lime-400 text-slate-950 font-bold text-xs shadow-lg shadow-lime-400/20 flex items-center gap-2 hover:bg-lime-300 transition"
                   >
-                    <span>Proceed to Personal Details</span>
+                    <span>{isMemberLoggedIn ? `Proceed to Payment (${formatINR(totalAmount)})` : 'Proceed to Personal Details'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -656,10 +760,14 @@ export const PlansPage: React.FC = () => {
 
                 <div>
                   <h3 className="font-heading font-extrabold text-2xl text-white">
-                    Welcome to Champions Club, {createdResult.member.fullName.split(' ')[0]}!
+                    {isMemberLoggedIn
+                      ? `Membership Upgraded to ${getTierName(createdResult.member.tier)}!`
+                      : `Welcome to Champions Club, ${createdResult.member.fullName.split(' ')[0]}!`}
                   </h3>
                   <p className="text-xs text-slate-300 mt-1">
-                    Your membership passport and invoice have been generated and posted to the ledger.
+                    {isMemberLoggedIn
+                      ? `Your membership benefits and privileges are now active. Invoice #${createdResult.invoiceNumber} has been generated.`
+                      : 'Your membership passport and invoice have been generated and posted to the ledger.'}
                   </p>
                 </div>
 
@@ -692,7 +800,7 @@ export const PlansPage: React.FC = () => {
                   onClick={handleCompleteAndLogin}
                   className="w-full py-3.5 rounded-2xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-extrabold text-sm shadow-xl shadow-lime-400/20 transition"
                 >
-                  Enter Member Portal Now →
+                  {isMemberLoggedIn ? 'Return to Member Hub →' : 'Enter Member Portal Now →'}
                 </button>
               </div>
             )}
