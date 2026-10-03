@@ -75,7 +75,7 @@ interface ClubContextType {
   isAuthenticated: boolean;
   switchRole: (role: UserRole) => void;
   login: (email: string, password?: string, role?: UserRole) => { success: boolean; error?: string };
-  signup: (data: { name: string; email: string; phone: string; password?: string; preferredSport?: string; dateOfBirth?: string }) => { success: boolean; error?: string };
+  signup: (data: { name: string; email: string; phone: string; password?: string; preferredSport?: string; dateOfBirth?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   authIntent: { view: AppView; extraData?: any; message?: string } | null;
   setAuthIntent: (intent: { view: AppView; extraData?: any; message?: string } | null) => void;
@@ -327,50 +327,113 @@ export const ClubProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  const signup = (data: {
+  const signup = async (data: {
     name: string;
     email: string;
     phone: string;
     password?: string;
     preferredSport?: string;
     dateOfBirth?: string;
-  }): { success: boolean; error?: string } => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const nextYear = new Date();
-    nextYear.setFullYear(nextYear.getFullYear() + 1);
+  }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // 1. Post to backend server which stores data in Supabase Auth & PostgreSQL
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-    const newMember = addMember({
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      dateOfBirth: data.dateOfBirth || '1998-05-15',
-      plan: 'Silver',
-      startDate: todayStr,
-      expiryDate: nextYear.toISOString().split('T')[0],
-      initialPaymentMethod: 'Online',
-    });
+      const result = await response.json();
 
-    const userProfile: UserProfile = {
-      id: newMember.id,
-      name: newMember.name,
-      email: newMember.email,
-      role: 'member',
-      memberId: newMember.memberId,
-      membershipPlan: newMember.plan,
-      phone: newMember.phone,
-    };
+      if (!response.ok || !result.success) {
+        return { success: false, error: result.error || 'Signup failed' };
+      }
 
-    setCurrentUser(userProfile);
-    setIsAuthenticated(true);
-    setAuthMessage(null);
+      const memberData = result.member;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
 
-    if (authIntent) {
-      setCurrentView(authIntent.view);
+      const newMember: Member = {
+        id: memberData?.id || `mem_${Date.now()}`,
+        memberId: memberData?.memberId || memberData?.member_id || `M${String(members.length + 1).padStart(3, '0')}`,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        dateOfBirth: data.dateOfBirth || '1998-05-15',
+        plan: (memberData?.plan as MembershipTier) || 'Silver',
+        startDate: memberData?.start_date || memberData?.startDate || todayStr,
+        expiryDate: memberData?.expiry_date || memberData?.expiryDate || nextYear.toISOString().split('T')[0],
+        status: 'active',
+        discountRate: memberData?.discount_rate || memberData?.discountRate || 0.10,
+        totalBookings: 0,
+        totalSpent: memberData?.total_spent || memberData?.totalSpent || 28000,
+      };
+
+      setMembers((prev) => [newMember, ...prev.filter((m) => m.email.toLowerCase() !== data.email.toLowerCase())]);
+
+      const userProfile: UserProfile = {
+        id: result.user?.id || newMember.id,
+        name: newMember.name,
+        email: newMember.email,
+        role: 'member',
+        memberId: newMember.memberId,
+        membershipPlan: newMember.plan,
+        phone: newMember.phone,
+      };
+
+      setCurrentUser(userProfile);
+      setIsAuthenticated(true);
+      setAuthMessage(null);
+
+      if (authIntent) {
+        setCurrentView(authIntent.view);
+        return { success: true };
+      }
+
+      setCurrentView('member_portal');
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Backend server unreachable, creating local member:', err);
+      const todayStr = new Date().toISOString().split('T')[0];
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
+
+      const newMember = addMember({
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        dateOfBirth: data.dateOfBirth || '1998-05-15',
+        plan: 'Silver',
+        startDate: todayStr,
+        expiryDate: nextYear.toISOString().split('T')[0],
+        initialPaymentMethod: 'Online',
+      });
+
+      const userProfile: UserProfile = {
+        id: newMember.id,
+        name: newMember.name,
+        email: newMember.email,
+        role: 'member',
+        memberId: newMember.memberId,
+        membershipPlan: newMember.plan,
+        phone: newMember.phone,
+      };
+
+      setCurrentUser(userProfile);
+      setIsAuthenticated(true);
+      setAuthMessage(null);
+
+      if (authIntent) {
+        setCurrentView(authIntent.view);
+        return { success: true };
+      }
+
+      setCurrentView('member_portal');
       return { success: true };
     }
-
-    setCurrentView('member_portal');
-    return { success: true };
   };
 
   const logout = () => {

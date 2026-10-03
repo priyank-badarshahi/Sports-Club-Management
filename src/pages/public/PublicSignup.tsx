@@ -24,9 +24,12 @@ export const PublicSignup: React.FC = () => {
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
     if (!name || !email || !phone || !password) {
       setError('Please fill in all required fields.');
       return;
@@ -40,19 +43,26 @@ export const PublicSignup: React.FC = () => {
       return;
     }
 
-    const res = signup({
-      name,
-      email,
-      phone,
-      password,
-      preferredSport,
-      dateOfBirth,
-    });
+    try {
+      setLoading(true);
+      const res = await signup({
+        name,
+        email,
+        phone,
+        password,
+        preferredSport,
+        dateOfBirth,
+      });
 
-    if (res.success) {
-      setSuccess(true);
-    } else {
-      setError(res.error || 'Failed to create account.');
+      if (res.success) {
+        setSuccess(true);
+      } else {
+        setError(res.error || 'Failed to create account.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Error creating account.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -236,10 +246,11 @@ export const PublicSignup: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-xs transition-all flex items-center justify-center gap-1.5"
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold text-xs uppercase tracking-wider shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <span>Create Account</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>{loading ? 'Creating Account...' : 'Create Account'}</span>
+                {!loading && <ArrowRight className="w-4 h-4" />}
               </button>
             </form>
           )}
