@@ -66,6 +66,10 @@ export const MemberProfilePage: React.FC = () => {
   // Full Profile edit modal state
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileFormError, setProfileFormError] = useState('');
+  const [showProfileCurrentPassword, setShowProfileCurrentPassword] = useState(false);
+  const [showProfileNewPassword, setShowProfileNewPassword] = useState(false);
+  const [showProfileConfirmPassword, setShowProfileConfirmPassword] = useState(false);
   const [profileForm, setProfileForm] = useState({
     fullName: currentMember.fullName,
     phone: currentMember.phone,
@@ -75,6 +79,9 @@ export const MemberProfilePage: React.FC = () => {
     emergencyName: currentMember.emergencyContact?.name || '',
     emergencyPhone: currentMember.emergencyContact?.phone || '',
     emergencyRelation: currentMember.emergencyContact?.relation || '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
 
   // Password change modal state
@@ -115,13 +122,20 @@ export const MemberProfilePage: React.FC = () => {
       emergencyName: currentMember.emergencyContact?.name || '',
       emergencyPhone: currentMember.emergencyContact?.phone || '',
       emergencyRelation: currentMember.emergencyContact?.relation || '',
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
     });
+    setProfileFormError('');
     setProfileEditOpen(true);
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setProfileFormError('');
+
     if (!profileForm.fullName.trim()) {
+      setProfileFormError('Please provide your full legal or member name.');
       addToast({
         type: 'error',
         title: 'Name Required',
@@ -130,24 +144,41 @@ export const MemberProfilePage: React.FC = () => {
       return;
     }
 
+    if (profileForm.newPassword) {
+      if (profileForm.newPassword.length < 6) {
+        setProfileFormError('New password must be at least 6 characters long.');
+        return;
+      }
+      if (profileForm.newPassword !== profileForm.confirmPassword) {
+        setProfileFormError('New passwords do not match. Please re-enter.');
+        return;
+      }
+    }
+
     setIsSavingProfile(true);
     try {
+      const payload: any = {
+        email: currentMember.email || currentUser.email,
+        fullName: profileForm.fullName.trim(),
+        phone: profileForm.phone.trim(),
+        dateOfBirth: profileForm.dateOfBirth,
+        avatar: profileForm.avatar.trim(),
+        emergencyContact: {
+          name: profileForm.emergencyName.trim(),
+          phone: profileForm.emergencyPhone.trim(),
+          relation: profileForm.emergencyRelation.trim(),
+        },
+        preferredSports: [profileForm.preferredSport],
+      };
+      if (profileForm.newPassword) {
+        payload.currentPassword = profileForm.currentPassword;
+        payload.newPassword = profileForm.newPassword;
+      }
+
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: currentMember.email || currentUser.email,
-          fullName: profileForm.fullName.trim(),
-          phone: profileForm.phone.trim(),
-          dateOfBirth: profileForm.dateOfBirth,
-          avatar: profileForm.avatar.trim(),
-          emergencyContact: {
-            name: profileForm.emergencyName.trim(),
-            phone: profileForm.emergencyPhone.trim(),
-            relation: profileForm.emergencyRelation.trim(),
-          },
-          preferredSports: [profileForm.preferredSport],
-        }),
+        body: JSON.stringify(payload),
       });
 
       const resData = await response.json();
@@ -321,6 +352,32 @@ export const MemberProfilePage: React.FC = () => {
               <p className="text-xs text-slate-400 font-mono mt-0.5">
                 {currentMember.memberNumber} • {currentMember.phone}
               </p>
+
+              {/* Instant Quick Actions to Edit Profile & Password */}
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={handleOpenEdit}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold text-xs shadow-md shadow-lime-400/20 transition"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit Name & Phone</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordError('');
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setPasswordModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs border border-slate-700 transition"
+                >
+                  <Key className="w-3.5 h-3.5 text-lime-400" />
+                  <span>Change Password</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -873,6 +930,84 @@ export const MemberProfilePage: React.FC = () => {
                       placeholder="e.g. Spouse / Parent / Sibling"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional Password Update Section */}
+              <div className="space-y-3 pt-3 border-t border-slate-800">
+                <div className="flex items-center gap-1.5 text-lime-400 font-bold text-xs uppercase tracking-wider">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Change Account Password (Optional)</span>
+                </div>
+                <p className="text-[11px] text-slate-400">Leave password fields blank if you only wish to update name or phone.</p>
+
+                {profileFormError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{profileFormError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Current Password</label>
+                  <div className="relative">
+                    <input
+                      type={showProfileCurrentPassword ? 'text' : 'password'}
+                      value={profileForm.currentPassword}
+                      onChange={(e) => setProfileForm({ ...profileForm, currentPassword: e.target.value })}
+                      placeholder="Enter current password"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowProfileCurrentPassword(!showProfileCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      {showProfileCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showProfileNewPassword ? 'text' : 'password'}
+                        value={profileForm.newPassword}
+                        onChange={(e) => setProfileForm({ ...profileForm, newPassword: e.target.value })}
+                        placeholder="Min 6 characters"
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowProfileNewPassword(!showProfileNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showProfileNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">Confirm New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showProfileConfirmPassword ? 'text' : 'password'}
+                        value={profileForm.confirmPassword}
+                        onChange={(e) => setProfileForm({ ...profileForm, confirmPassword: e.target.value })}
+                        placeholder="Confirm password"
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowProfileConfirmPassword(!showProfileConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showProfileConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

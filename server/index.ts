@@ -51,9 +51,9 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
     const rawPlan = String(plan || tier || '').trim().toLowerCase();
     const resolvedPlan =
       rawPlan === 'gold' ? 'Gold' :
-      rawPlan === 'silver' ? 'Silver' :
-      rawPlan === 'junior' ? 'Junior' :
-      'Walk-in';
+        rawPlan === 'silver' ? 'Silver' :
+          rawPlan === 'junior' ? 'Junior' :
+            'Walk-in';
 
     // Validate inputs
     if (!resolvedName || !resolvedEmail || !resolvedPhone || !resolvedPassword) {
@@ -282,21 +282,28 @@ app.post('/api/auth/signup', async (req: Request, res: Response): Promise<void> 
   }
 });
 
-// Staff verification map requiring valid password for each staff account
-export const DEMO_STAFF_MAP: Record<string, { role: string; name: string; password?: string; memberId?: string; phone?: string }> = {
+// Demo and seeded accounts verification map requiring valid password for each account
+export const DEMO_ACCOUNTS_MAP: Record<string, { role: string; name: string; password?: string; memberId?: string; phone?: string; membershipPlan?: string }> = {
+  // Members
+  'vikram.malhotra@championsclub.in': { role: 'member', name: 'Vikram Malhotra', password: 'password', memberId: 'mem_1', phone: '+91 98765 43210', membershipPlan: 'Gold' },
+  'member@championsclub.demo': { role: 'member', name: 'Vikram Malhotra', password: 'password', memberId: 'mem_1', phone: '+91 98765 43210', membershipPlan: 'Gold' },
+  'guest@championsclub.in': { role: 'visitor', name: 'Guest Visitor', password: 'password', phone: '' },
+
+  // Staff & Admin
   'priyank@gmail.com': { role: 'front_desk', name: 'Priyank Patel', password: 'priyank', memberId: 'FD001', phone: '+91 98765 22222' },
   'jack@gmail.com': { role: 'owner', name: 'Jack Jackson', password: 'jackson', memberId: 'ADM001', phone: '+91 98765 00001' },
-  'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', password: 'password', memberId: 'ADM001' },
-  'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', password: 'password', memberId: 'ADM001' },
-  'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma', password: 'password', memberId: 'FD002' },
-  'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma', password: 'password', memberId: 'FD003' },
-  'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra', password: 'password', memberId: 'SH001' },
-  'ananya.shop@championsclub.in': { role: 'shop_staff', name: 'Ananya Sen', password: 'password', memberId: 'SH002' },
-  'bar@championsclub.demo': { role: 'bar_staff', name: 'Chef Amit Roy', password: 'password', memberId: 'BR001' },
-  'rohan.bar@championsclub.in': { role: 'bar_staff', name: 'Rohan Das', password: 'password', memberId: 'BR002' },
-  'manager@championsclub.demo': { role: 'manager', name: 'Sanjay Verma', password: 'password', memberId: 'MGR001' },
-  'arjun.manager@championsclub.in': { role: 'manager', name: 'Arjun Rao', password: 'password', memberId: 'MGR002' },
+  'owner@championsclub.demo': { role: 'owner', name: 'Vikramaditya Singhania', password: 'password', memberId: 'ADM001', phone: '+91 98765 00001' },
+  'rajesh.owner@championsclub.in': { role: 'owner', name: 'Rajesh Singhania', password: 'password', memberId: 'ADM001', phone: '+91 98765 00001' },
+  'frontdesk@championsclub.demo': { role: 'front_desk', name: 'Ananya Sharma', password: 'password', memberId: 'FD002', phone: '+91 98765 22222' },
+  'priya.desk@championsclub.in': { role: 'front_desk', name: 'Priya Sharma', password: 'password', memberId: 'FD003', phone: '+91 98765 22222' },
+  'shop@championsclub.demo': { role: 'shop_staff', name: 'Karan Mehra', password: 'password', memberId: 'SH001', phone: '+91 98765 33333' },
+  'ananya.shop@championsclub.in': { role: 'shop_staff', name: 'Ananya Sen', password: 'password', memberId: 'SH002', phone: '+91 98765 33333' },
+  'bar@championsclub.demo': { role: 'bar_staff', name: 'Chef Amit Roy', password: 'password', memberId: 'BR001', phone: '+91 98765 44444' },
+  'rohan.bar@championsclub.in': { role: 'bar_staff', name: 'Rohan Das', password: 'password', memberId: 'BR002', phone: '+91 98765 44444' },
+  'manager@championsclub.demo': { role: 'manager', name: 'Sanjay Verma', password: 'password', memberId: 'MGR001', phone: '+91 98765 55555' },
+  'arjun.manager@championsclub.in': { role: 'manager', name: 'Arjun Rao', password: 'password', memberId: 'MGR002', phone: '+91 98765 55555' },
 };
+export const DEMO_STAFF_MAP = DEMO_ACCOUNTS_MAP;
 
 // Login Endpoint: Authenticates user credentials via Supabase Auth and fetches profile from DB
 app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> => {
@@ -356,11 +363,11 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
         const rawRole = String(profile?.role || authData.user.user_metadata?.role || 'member').toLowerCase();
         const role =
           rawRole === 'owner' ? 'owner' :
-          rawRole.includes('front') ? 'front_desk' :
-          rawRole.includes('bar') ? 'bar_staff' :
-          rawRole.includes('shop') ? 'shop_staff' :
-          rawRole.includes('manager') ? 'manager' :
-          'member';
+            rawRole.includes('front') ? 'front_desk' :
+              rawRole.includes('bar') ? 'bar_staff' :
+                rawRole.includes('shop') ? 'shop_staff' :
+                  rawRole.includes('manager') ? 'manager' :
+                    'member';
 
         const name = profile?.name || member?.name || authData.user.user_metadata?.name || targetEmail.split('@')[0];
         const memberId = role === 'member' ? (profile?.member_id || member?.member_id || 'M001') : (profile?.member_id || 'STF001');
@@ -392,29 +399,29 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
         return;
       }
 
-      if (DEMO_STAFF_MAP[cleanIdentifier]) {
-        const staff = DEMO_STAFF_MAP[cleanIdentifier];
-        if (staff.password && String(password) !== staff.password) {
-          console.warn(`⚠️ [Staff Login] Incorrect password entered for staff: ${cleanIdentifier}`);
+      if (DEMO_ACCOUNTS_MAP[cleanIdentifier]) {
+        const account = DEMO_ACCOUNTS_MAP[cleanIdentifier];
+        if (account.password && String(password) !== account.password) {
+          console.warn(`⚠️ [Account Login] Incorrect password entered for: ${cleanIdentifier}`);
           res.status(401).json({
             success: false,
-            error: 'Invalid password. Please verify your staff credentials.',
+            error: 'Invalid password. Please verify your login credentials.',
           });
           return;
         }
 
-        console.log(`ℹ️ [Staff Login] Authenticated staff role: ${staff.role} (${staff.name})`);
+        console.log(`ℹ [Account Login] Authenticated role: ${account.role} (${account.name})`);
         res.json({
           success: true,
-          message: 'Staff login verified',
+          message: 'Login verified',
           user: {
-            id: `usr_${staff.role}`,
-            name: staff.name,
+            id: `usr_${account.role}`,
+            name: account.name,
             email: cleanIdentifier,
-            role: staff.role,
-            memberId: staff.memberId || 'STF001',
-            membershipPlan: undefined,
-            phone: staff.phone || '+91 98765 22222',
+            role: account.role,
+            memberId: account.memberId || (account.role === 'member' ? 'M001' : 'STF001'),
+            membershipPlan: account.membershipPlan,
+            phone: account.phone || '+91 98765 22222',
           },
         });
         return;
@@ -498,29 +505,29 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
         return;
       }
 
-      // If user is a demo staff account in memory
-      if (DEMO_STAFF_MAP[resolvedEmail]) {
-        if (currentPassword && DEMO_STAFF_MAP[resolvedEmail].password && DEMO_STAFF_MAP[resolvedEmail].password !== currentPassword) {
+      // If user is a demo account in memory
+      if (DEMO_ACCOUNTS_MAP[resolvedEmail]) {
+        if (currentPassword && DEMO_ACCOUNTS_MAP[resolvedEmail].password && DEMO_ACCOUNTS_MAP[resolvedEmail].password !== currentPassword) {
           res.status(400).json({
             success: false,
             error: 'Current password does not match.',
           });
           return;
         }
-        DEMO_STAFF_MAP[resolvedEmail].password = String(newPassword);
+        DEMO_ACCOUNTS_MAP[resolvedEmail].password = String(newPassword);
         passwordUpdated = true;
       }
 
       if (isSupabaseConfigured) {
-        // Authenticate current password if supplied
-        if (currentPassword) {
+        // Authenticate current password if supplied and not a demo account
+        if (currentPassword && !DEMO_ACCOUNTS_MAP[resolvedEmail]) {
           const authClient = createAuthClient();
           const { error: verifyErr } = await authClient.auth.signInWithPassword({
             email: resolvedEmail,
             password: String(currentPassword),
           });
 
-          if (verifyErr && !DEMO_STAFF_MAP[resolvedEmail]) {
+          if (verifyErr) {
             console.warn(`⚠️ [Password Update] Current password check failed for ${resolvedEmail}:`, verifyErr.message);
             res.status(400).json({
               success: false,
@@ -551,7 +558,12 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
 
           if (!targetUserId) {
             const { data: usersData } = await supabase.auth.admin.listUsers();
-            const matchedUser = usersData?.users?.find(
+            const authUsers = usersData?.users as Array<{
+              id: string;
+              email?: string;
+            }> | undefined;
+
+            const matchedUser = authUsers?.find(
               (u) => u.email?.toLowerCase() === resolvedEmail
             );
             if (matchedUser) targetUserId = matchedUser.id;
@@ -571,6 +583,25 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
             }
             passwordUpdated = true;
             console.log(`✅ [Supabase Auth] Password updated for user: ${resolvedEmail}`);
+          } else {
+            // User does not exist in Supabase Auth yet — provision them now so they can log in
+            const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
+              email: resolvedEmail,
+              password: String(newPassword),
+              email_confirm: true,
+              user_metadata: {
+                name: resolvedName,
+                phone: resolvedPhone,
+                role: DEMO_ACCOUNTS_MAP[resolvedEmail]?.role || 'member',
+              },
+            });
+            if (newUser?.user) {
+              targetUserId = newUser.user.id;
+              passwordUpdated = true;
+              console.log(`✅ [Supabase Auth] User provisioned in Auth with new password: ${resolvedEmail}`);
+            } else if (createErr) {
+              console.warn('⚠️ Supabase createUser notice:', createErr.message);
+            }
           }
         } catch (authPwdErr: any) {
           console.warn('⚠️ Supabase password change exception:', authPwdErr?.message);
@@ -579,9 +610,9 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
     }
 
     // 2. Profile Details Update (Name, Phone, Avatar, DOB, Emergency Contact)
-    if (DEMO_STAFF_MAP[resolvedEmail]) {
-      if (resolvedName) DEMO_STAFF_MAP[resolvedEmail].name = resolvedName;
-      if (resolvedPhone) DEMO_STAFF_MAP[resolvedEmail].phone = resolvedPhone;
+    if (DEMO_ACCOUNTS_MAP[resolvedEmail]) {
+      if (resolvedName) DEMO_ACCOUNTS_MAP[resolvedEmail].name = resolvedName;
+      if (resolvedPhone) DEMO_ACCOUNTS_MAP[resolvedEmail].phone = resolvedPhone;
     }
 
     if (isSupabaseConfigured) {
@@ -593,6 +624,7 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
         .maybeSingle();
 
       let targetUserId = (prof as any)?.id;
+
       if (!targetUserId) {
         const { data: mem } = await supabase
           .from('members')
@@ -618,7 +650,7 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
         }
       }
 
-      // Update public.profiles table
+      // Update or upsert public.profiles table
       const profileUpdates: any = {};
       if (resolvedName) profileUpdates.name = resolvedName;
       if (resolvedPhone) profileUpdates.phone = resolvedPhone;
@@ -627,11 +659,22 @@ async function handleProfileUpdate(req: Request, res: Response): Promise<void> {
         profileUpdates.membership_plan = (resolvedPlan === 'Walk-in' || (resolvedPlan as any) === 'None') ? null : resolvedPlan;
       }
 
-      if (Object.keys(profileUpdates).length > 0) {
+      if (prof) {
         if (targetUserId) {
           await supabase.from('profiles').update(profileUpdates).eq('id', targetUserId);
         }
         await supabase.from('profiles').update(profileUpdates).ilike('email', resolvedEmail);
+      } else if (targetUserId) {
+        await supabase.from('profiles').upsert({
+          id: targetUserId,
+          email: resolvedEmail,
+          name: resolvedName || 'Club Member',
+          phone: resolvedPhone || '',
+          avatar_url: resolvedAvatar || '',
+          role: DEMO_ACCOUNTS_MAP[resolvedEmail]?.role || 'member',
+          member_id: DEMO_ACCOUNTS_MAP[resolvedEmail]?.memberId || `M${Math.floor(100 + Math.random() * 900)}`,
+          membership_plan: resolvedPlan === 'Walk-in' ? null : resolvedPlan,
+        });
       }
 
       // Update or insert into public.members table
@@ -732,15 +775,15 @@ function formatMemberForClient(m: any) {
   const tierRaw = String(m.plan || '').toLowerCase();
   const tier: any =
     tierRaw === 'gold' ? 'gold' :
-    tierRaw === 'junior' ? 'junior' :
-    tierRaw === 'silver' ? 'silver' :
-    'walk_in';
+      tierRaw === 'junior' ? 'junior' :
+        tierRaw === 'silver' ? 'silver' :
+          'walk_in';
 
   let emergencyContact = { name: 'Emergency Contact', phone: m.phone || '', relation: 'Family' };
   if (typeof m.emergency_contact === 'string') {
     try {
       emergencyContact = JSON.parse(m.emergency_contact);
-    } catch (e) {}
+    } catch (e) { }
   } else if (typeof m.emergency_contact === 'object' && m.emergency_contact !== null) {
     emergencyContact = m.emergency_contact;
   }
@@ -847,9 +890,9 @@ app.post('/api/members', async (req: Request, res: Response): Promise<void> => {
     const rawPlan = String(plan || tier || 'Walk-in').toLowerCase();
     const resolvedPlan =
       rawPlan === 'gold' ? 'Gold' :
-      rawPlan === 'junior' ? 'Junior' :
-      rawPlan === 'silver' ? 'Silver' :
-      'Walk-in';
+        rawPlan === 'junior' ? 'Junior' :
+          rawPlan === 'silver' ? 'Silver' :
+            'Walk-in';
 
     if (!resolvedName || !resolvedEmail) {
       res.status(400).json({ success: false, error: 'Name and email are required.' });
@@ -1123,7 +1166,14 @@ app.post('/api/employees', async (req: Request, res: Response): Promise<void> =>
         if (adminError) {
           if (adminError.message?.toLowerCase().includes('already')) {
             const { data: usersData } = await supabase.auth.admin.listUsers();
-            const existing = usersData?.users.find((u) => u.email?.toLowerCase() === resolvedEmail);
+            const authUsers = usersData?.users as Array<{
+              id: string;
+              email?: string;
+            }> | undefined;
+
+            const existing = authUsers?.find(
+              (u) => u.email?.toLowerCase() === resolvedEmail
+            );
             if (existing) {
               await supabase.auth.admin.updateUserById(existing.id, {
                 password: String(resolvedPassword),
@@ -1168,13 +1218,13 @@ app.post('/api/employees', async (req: Request, res: Response): Promise<void> =>
         // 3. Upsert into public.employees table in Supabase
         try {
           const empRoleEnum = standardRole === 'front_desk' ? 'Front Desk'
-                            : standardRole === 'bar_staff' ? 'Bar Staff'
-                            : standardRole === 'shop_staff' ? 'Shop Staff'
-                            : 'Manager';
+            : standardRole === 'bar_staff' ? 'Bar Staff'
+              : standardRole === 'shop_staff' ? 'Shop Staff'
+                : 'Manager';
           const empDeptEnum = standardRole === 'front_desk' ? 'Front Desk'
-                            : standardRole === 'bar_staff' ? 'Cafeteria & Bar'
-                            : standardRole === 'shop_staff' ? 'Sports Shop'
-                            : 'Operations & Maintenance';
+            : standardRole === 'bar_staff' ? 'Cafeteria & Bar'
+              : standardRole === 'shop_staff' ? 'Sports Shop'
+                : 'Operations & Maintenance';
 
           const initials = resolvedName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'ST';
           const wage = Math.round((monthlySalary || 38000) / 160);

@@ -17,15 +17,34 @@ import {
   Calendar, 
   Percent, 
   Settings2,
-  FileText
+  FileText,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Key
 } from 'lucide-react';
 import { formatDateTime } from '../../lib/formatters';
 
 export const StaffSettingsPage: React.FC = () => {
-  const { settings, updateSettings, auditLogs, resetDemoData, addToast, courts, plans } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'entitlements' | 'booking_rules' | 'taxes_delivery' | 'roles' | 'audit' | 'supabase'>('entitlements');
+  const { settings, updateSettings, auditLogs, resetDemoData, addToast, courts, plans, currentUser, updateUserProfile } = useAppStore();
+  const [activeTab, setActiveTab] = useState<'entitlements' | 'booking_rules' | 'taxes_delivery' | 'roles' | 'profile' | 'audit' | 'supabase'>('entitlements');
   const [form, setForm] = useState({ ...settings });
   const [confirmReset, setConfirmReset] = useState(false);
+
+  // Staff Profile State
+  const [profileName, setProfileName] = useState(currentUser.name || '');
+  const [profilePhone, setProfilePhone] = useState(currentUser.phone || '');
+  const [profileAvatar, setProfileAvatar] = useState(currentUser.avatar || '');
+  const [profileCurrentPassword, setProfileCurrentPassword] = useState('');
+  const [profileNewPassword, setProfileNewPassword] = useState('');
+  const [profileConfirmPassword, setProfileConfirmPassword] = useState('');
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [isSavingStaffProfile, setIsSavingStaffProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
 
   // Booking rules form state
   const [bookingRulesForm, setBookingRulesForm] = useState({
@@ -66,6 +85,77 @@ export const StaffSettingsPage: React.FC = () => {
       title: 'Settings Saved',
       message: 'General club parameters and operating rules updated.',
     });
+  };
+
+  const handleSaveStaffProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError('');
+
+    if (!profileName.trim()) {
+      setProfileError('Full Name is required.');
+      return;
+    }
+
+    if (profileNewPassword) {
+      if (profileNewPassword.length < 6) {
+        setProfileError('New password must be at least 6 characters long.');
+        return;
+      }
+      if (profileNewPassword !== profileConfirmPassword) {
+        setProfileError('New passwords do not match. Please re-enter.');
+        return;
+      }
+    }
+
+    setIsSavingStaffProfile(true);
+    try {
+      const payload: any = {
+        email: currentUser.email,
+        fullName: profileName.trim(),
+        phone: profilePhone.trim(),
+        avatar: profileAvatar.trim(),
+      };
+      if (profileNewPassword) {
+        payload.currentPassword = profileCurrentPassword;
+        payload.newPassword = profileNewPassword;
+      }
+
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update profile details.');
+      }
+
+      updateUserProfile({
+        name: profileName.trim(),
+        phone: profilePhone.trim(),
+        avatar: profileAvatar.trim(),
+      });
+
+      setProfileCurrentPassword('');
+      setProfileNewPassword('');
+      setProfileConfirmPassword('');
+
+      addToast({
+        type: 'success',
+        title: 'Profile Updated Successfully',
+        message: data.message || 'Your staff credentials and contact information have been saved.',
+      });
+    } catch (err: any) {
+      setProfileError(err.message || 'Failed to save profile.');
+      addToast({
+        type: 'error',
+        title: 'Update Failed',
+        message: err.message || 'Could not save profile details.',
+      });
+    } finally {
+      setIsSavingStaffProfile(false);
+    }
   };
 
   const exportAuditCSV = () => {
@@ -137,6 +227,17 @@ export const StaffSettingsPage: React.FC = () => {
           }`}
         >
           User & Role Access
+        </button>
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+            activeTab === 'profile'
+              ? 'bg-lime-400 text-slate-950 shadow-md shadow-lime-400/20'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <User className="w-3.5 h-3.5" />
+          <span>My Profile & Password</span>
         </button>
         <button
           onClick={() => setActiveTab('audit')}
@@ -812,6 +913,212 @@ CREATE TABLE IF NOT EXISTS payments (
           </div>
         </div>
       )}
+
+      {/* My Staff Profile & Password Tab */}
+      {activeTab === 'profile' && (
+        <div className="space-y-6 animate-in fade-in">
+          <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 space-y-6 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <img
+                  src={profileAvatar || currentUser.avatar}
+                  alt={profileName || currentUser.name}
+                  className="w-14 h-14 rounded-2xl object-cover ring-2 ring-lime-400/60 shadow-lg"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-lime-400">
+                      Staff Credential
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-bold uppercase">
+                      {currentUser.role.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <h3 className="font-heading font-extrabold text-xl text-white mt-0.5">
+                    {profileName || currentUser.name}
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    {currentUser.email} • {profilePhone || currentUser.phone || 'No phone set'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {profileError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{profileError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveStaffProfile} className="space-y-5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Full Legal Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="Enter your full name"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Mobile Phone Number</label>
+                  <input
+                    type="tel"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+              </div>
+
+              {/* Avatar Photo Selection */}
+              <div className="space-y-2 pt-3 border-t border-slate-800">
+                <label className="text-slate-300 font-semibold block">Profile Photo / Avatar</label>
+                <div className="flex items-center gap-3">
+                  <img
+                    src={profileAvatar || currentUser.avatar}
+                    alt="Preview"
+                    className="w-12 h-12 rounded-xl object-cover ring-2 ring-lime-400/60 shrink-0"
+                  />
+                  <input
+                    type="url"
+                    value={profileAvatar}
+                    onChange={(e) => setProfileAvatar(e.target.value)}
+                    placeholder="Enter custom image URL (https://...)"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-[11px] font-mono focus:outline-none focus:border-lime-400"
+                  />
+                </div>
+
+                {/* Preset Avatar Selection */}
+                <div>
+                  <span className="text-[10px] text-slate-400 block mb-1">Or choose an avatar preset:</span>
+                  <div className="flex items-center gap-2 overflow-x-auto py-1">
+                    {[
+                      { label: 'Executive Sport', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Athletic Lead', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Pro Shop Lead', url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Operations Lead', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Club Director', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80' },
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setProfileAvatar(preset.url)}
+                        className={`relative rounded-xl overflow-hidden shrink-0 border-2 transition ${
+                          profileAvatar === preset.url
+                            ? 'border-lime-400 scale-105 shadow-md shadow-lime-400/20'
+                            : 'border-transparent opacity-60 hover:opacity-100'
+                        }`}
+                        title={preset.label}
+                      >
+                        <img src={preset.url} alt={preset.label} className="w-8 h-8 object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Password Section */}
+              <div className="space-y-3 pt-3 border-t border-slate-800">
+                <div className="flex items-center gap-1.5 text-lime-400 font-bold text-xs uppercase tracking-wider">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Change Password (Optional)</span>
+                </div>
+                <p className="text-[11px] text-slate-400">Leave password fields blank if you only wish to update name or phone.</p>
+
+                <div>
+                  <label className="text-slate-300 font-semibold block mb-1">Current Password</label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPass ? 'text' : 'password'}
+                      value={profileCurrentPassword}
+                      onChange={(e) => setProfileCurrentPassword(e.target.value)}
+                      placeholder="Enter your current password"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPass(!showCurrentPass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      {showCurrentPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPass ? 'text' : 'password'}
+                        value={profileNewPassword}
+                        onChange={(e) => setProfileNewPassword(e.target.value)}
+                        placeholder="Min 6 characters"
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPass(!showNewPass)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-slate-300 font-semibold block mb-1">Confirm New Password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPass ? 'text' : 'password'}
+                        value={profileConfirmPassword}
+                        onChange={(e) => setProfileConfirmPassword(e.target.value)}
+                        placeholder="Confirm password"
+                        className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-white font-medium focus:outline-none focus:border-lime-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPass(!showConfirmPass)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      >
+                        {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="submit"
+                  disabled={isSavingStaffProfile}
+                  className="px-6 py-2.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold shadow-md shadow-lime-400/20 flex items-center gap-2 transition disabled:opacity-50"
+                >
+                  {isSavingStaffProfile ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Saving Profile...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Save Profile & Password</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

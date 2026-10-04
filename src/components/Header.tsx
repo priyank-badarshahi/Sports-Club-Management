@@ -39,9 +39,14 @@ export const Header: React.FC<HeaderProps> = ({
   const { 
     currentRole, 
     currentUser, 
+    members,
+    employees,
     setRole, 
     setCurrentUser,
     updateUserProfile,
+    accountModalOpen,
+    openAccountModal,
+    closeAccountModal,
     notifications, 
     markNotificationRead, 
     markAllNotificationsRead,
@@ -55,7 +60,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   // Account & Password Edit State
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [isSavingAccount, setIsSavingAccount] = useState(false);
   const [accountName, setAccountName] = useState('');
   const [accountPhone, setAccountPhone] = useState('');
@@ -120,16 +124,29 @@ export const Header: React.FC<HeaderProps> = ({
     });
   };
 
+  useEffect(() => {
+    if (accountModalOpen) {
+      const memberRecord = members.find(
+        (m) =>
+          (currentUser.memberId && m.id === currentUser.memberId) ||
+          (currentUser.email && m.email?.toLowerCase() === currentUser.email?.toLowerCase())
+      );
+      const employeeRecord = employees.find(
+        (e) => currentUser.email && e.email?.toLowerCase() === currentUser.email?.toLowerCase()
+      );
+      setAccountName(currentUser.name || memberRecord?.fullName || employeeRecord?.name || '');
+      setAccountPhone(currentUser.phone || memberRecord?.phone || employeeRecord?.phone || '');
+      setAccountAvatar(currentUser.avatar || memberRecord?.avatar || '');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setAccountError('');
+    }
+  }, [accountModalOpen, currentUser, members, employees]);
+
   const handleOpenAccountModal = () => {
-    setAccountName(currentUser.name || '');
-    setAccountPhone(currentUser.phone || '');
-    setAccountAvatar(currentUser.avatar || '');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setAccountError('');
     setRoleDropdownOpen(false);
-    setAccountModalOpen(true);
+    openAccountModal();
   };
 
   const handleSaveAccount = async (e: React.FormEvent) => {
@@ -182,7 +199,7 @@ export const Header: React.FC<HeaderProps> = ({
         avatar: accountAvatar.trim(),
       });
 
-      setAccountModalOpen(false);
+      closeAccountModal();
       addToast({
         type: 'success',
         title: 'Profile Updated Successfully',
@@ -531,7 +548,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setAccountModalOpen(false)}
+                onClick={() => closeAccountModal()}
                 className="text-slate-400 hover:text-white p-1 rounded-lg"
               >
                 ✕
@@ -569,20 +586,48 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
 
               <div>
-                <label className="text-slate-300 font-semibold block mb-1">Profile Photo URL</label>
-                <div className="flex items-center gap-2.5">
+                <label className="text-slate-300 font-semibold block mb-1">Profile Photo / Avatar</label>
+                <div className="flex items-center gap-2.5 mb-2">
                   <img
                     src={accountAvatar || currentUser.avatar}
                     alt="Preview"
-                    className="w-9 h-9 rounded-xl object-cover ring-1 ring-lime-400/60 shrink-0"
+                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-lime-400/60 shrink-0"
                   />
                   <input
                     type="url"
                     value={accountAvatar}
                     onChange={(e) => setAccountAvatar(e.target.value)}
-                    placeholder="https://..."
+                    placeholder="Enter custom image URL (https://...)"
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono text-[11px] focus:outline-none focus:border-lime-400"
                   />
+                </div>
+                {/* 1-Click Avatar Presets */}
+                <div>
+                  <span className="text-[10px] text-slate-400 block mb-1.5">Or choose an athletic avatar preset:</span>
+                  <div className="flex items-center gap-2 overflow-x-auto py-1">
+                    {[
+                      { label: 'Tennis Pro', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Cricket Ace', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Badminton Star', url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Squash Player', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Padel Champion', url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&h=150&q=80' },
+                      { label: 'Runner Athlete', url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80' },
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setAccountAvatar(preset.url)}
+                        className={`relative rounded-xl overflow-hidden shrink-0 border-2 transition ${
+                          accountAvatar === preset.url
+                            ? 'border-lime-400 scale-105 shadow-md shadow-lime-400/20'
+                            : 'border-transparent opacity-60 hover:opacity-100'
+                        }`}
+                        title={preset.label}
+                      >
+                        <img src={preset.url} alt={preset.label} className="w-8 h-8 object-cover" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -661,7 +706,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   disabled={isSavingAccount}
-                  onClick={() => setAccountModalOpen(false)}
+                  onClick={() => closeAccountModal()}
                   className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 font-semibold transition"
                 >
                   Cancel

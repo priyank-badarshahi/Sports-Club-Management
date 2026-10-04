@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  MessageSquare
+  MessageSquare,
+  Settings
 } from 'lucide-react';
 
 interface StaffSidebarProps {
@@ -41,7 +42,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   mobileOpen,
   onCloseMobile,
 }) => {
-  const { currentRole, tabs, leads, products, notifications } = useAppStore();
+  const { currentRole, currentUser, openAccountModal, tabs, leads, products, notifications } = useAppStore();
 
   const openTabsCount = tabs.filter((t) => t.status === 'open').length;
   const newLeadsCount = leads.filter((l) => l.status === 'new' || l.status === 'trial_booked').length;
@@ -185,6 +186,46 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
             </NavLink>
           );
         })}
+      </div>
+
+      {/* Bottom User Profile Tile with 1-Click Edit */}
+      <div className="p-2 border-t border-slate-800/80 bg-slate-950/80">
+        {!collapsed ? (
+          <div className="p-2.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                className="w-8 h-8 rounded-xl object-cover ring-1 ring-lime-400/60 shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+                <p className="text-[10px] text-slate-400 truncate">{currentUser.phone || currentRole.replace('_', ' ')}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={openAccountModal}
+              title="Edit Profile & Password"
+              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-lime-400 border border-slate-700/80 transition shrink-0"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={openAccountModal}
+            title={`${currentUser.name} - Edit Profile & Password`}
+            className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-slate-800/80 transition group"
+          >
+            <img
+              src={currentUser.avatar}
+              alt={currentUser.name}
+              className="w-8 h-8 rounded-xl object-cover ring-1 ring-lime-400/60 group-hover:scale-105 transition"
+            />
+          </button>
+        )}
       </div>
 
       {/* Bottom Live System Status Pill */}

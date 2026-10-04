@@ -219,6 +219,10 @@ interface AppState {
   openMember360: (id: string) => void;
   closeMember360: () => void;
 
+  accountModalOpen: boolean;
+  openAccountModal: () => void;
+  closeAccountModal: () => void;
+
   // Actions
   addBooking: (booking: Omit<Booking, 'id' | 'createdAt'>) => Booking | null;
   cancelBooking: (id: string, reason?: string) => { success: boolean; refundAmount: number; lateCancelFee: number };
@@ -405,6 +409,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedMemberId360: null,
   openMember360: (id: string) => set({ selectedMemberId360: id }),
   closeMember360: () => set({ selectedMemberId360: null }),
+
+  accountModalOpen: false,
+  openAccountModal: () => set({ accountModalOpen: true }),
+  closeAccountModal: () => set({ accountModalOpen: false }),
 
   setRole: (role: Role) => {
     const prev = get().currentUser;
@@ -4335,12 +4343,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       phone: profileData.phone !== undefined ? profileData.phone : current.phone,
     };
 
+    let memberFound = false;
     const updatedMembers = get().members.map((m) => {
       const isCurrent =
         (current.memberId && m.id === current.memberId) ||
         (current.email && m.email?.toLowerCase() === current.email.toLowerCase());
 
       if (isCurrent) {
+        memberFound = true;
         return {
           ...m,
           fullName: profileData.name !== undefined ? profileData.name : m.fullName,
@@ -4354,12 +4364,35 @@ export const useAppStore = create<AppState>((set, get) => ({
       return m;
     });
 
+    if (!memberFound && (current.role === 'member' || current.memberId)) {
+      const newMember: Member = {
+        id: current.memberId || `mem_${Date.now()}`,
+        memberNumber: `CC-2026-${current.memberId || 'M001'}`,
+        fullName: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone || '',
+        avatar: updatedUser.avatar,
+        tier: updatedUser.tier || 'walk_in',
+        status: 'active',
+        joinDate: new Date().toISOString().split('T')[0],
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        walletBalance: 0,
+        activeTabBalance: 0,
+        emergencyContact: profileData.emergencyContact || { name: 'Emergency Contact', phone: updatedUser.phone || '', relation: 'Self' },
+        preferredSports: profileData.preferredSports || ['tennis'],
+        attendanceLog: [],
+        reminderLog: [],
+      };
+      updatedMembers.unshift(newMember);
+    }
+
     const updatedEmployees = get().employees.map((e) => {
       if (e.email?.toLowerCase() === current.email?.toLowerCase()) {
         return {
           ...e,
           name: profileData.name !== undefined ? profileData.name : e.name,
           phone: profileData.phone !== undefined ? profileData.phone : e.phone,
+          avatar: profileData.avatar !== undefined ? profileData.avatar : e.avatar,
         };
       }
       return e;
