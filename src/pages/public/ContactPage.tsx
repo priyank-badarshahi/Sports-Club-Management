@@ -30,7 +30,7 @@ export const ContactPage: React.FC = () => {
     email: '',
     phone: '',
     interest: 'membership' as LeadInterest,
-    sports: ['tennis', 'padel'] as SportType[],
+    sports: ['box_cricket', 'badminton'] as SportType[],
     interestedTier: 'gold' as MembershipTier,
     companyName: '',
     message: '',
@@ -257,7 +257,7 @@ export const ContactPage: React.FC = () => {
                   Sports of Interest
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {(['tennis', 'padel', 'badminton', 'cricket'] as SportType[]).map((sport) => {
+                  {(['box_cricket', 'badminton', 'table_tennis', 'volleyball', 'kho_kho', 'hockey', 'football', 'kabaddi'] as SportType[]).map((sport) => {
                     const active = formData.sports.includes(sport);
                     return (
                       <button
@@ -270,7 +270,7 @@ export const ContactPage: React.FC = () => {
                             : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
-                        {sport}
+                        {sport.replace(/_/g, ' ')}
                       </button>
                     );
                   })}
@@ -345,7 +345,7 @@ export const ContactPage: React.FC = () => {
                       email: '',
                       phone: '',
                       interest: 'membership',
-                      sports: ['tennis', 'padel'],
+                      sports: ['box_cricket', 'badminton'],
                       interestedTier: 'gold',
                       companyName: '',
                       message: '',

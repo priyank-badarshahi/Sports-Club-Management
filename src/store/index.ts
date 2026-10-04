@@ -373,9 +373,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentUser: (saved?.currentUser as UserProfile) || DEMO_USERS.visitor,
 
   members: saved?.members || INITIAL_MEMBERS,
-  courts: (saved?.courts && saved.courts.some((c: any) => c.id === 'court-1')) ? saved.courts : INITIAL_COURTS,
+  courts: (saved?.courts && saved.courts.length === INITIAL_COURTS.length && saved.courts.some((c: any) => c.sport === 'box_cricket' && c.id === 'court-1')) ? saved.courts : INITIAL_COURTS,
   plans: saved?.plans || INITIAL_PLANS,
-  bookings: saved?.bookings || INITIAL_BOOKINGS,
+  bookings: (saved?.bookings && !saved.bookings.some((b: any) => b.sport === 'tennis' || b.sport === 'padel')) ? saved.bookings : INITIAL_BOOKINGS,
   socialSessions: saved?.socialSessions || INITIAL_SOCIAL_SESSIONS,
   products: (saved?.products && saved.products.length === INITIAL_PRODUCTS.length && saved.products.some((p: any) => p.id === 'prod_kbd_12')) ? saved.products : INITIAL_PRODUCTS,
   suppliers: saved?.suppliers || INITIAL_SUPPLIERS,
@@ -4379,7 +4379,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         walletBalance: 0,
         activeTabBalance: 0,
         emergencyContact: profileData.emergencyContact || { name: 'Emergency Contact', phone: updatedUser.phone || '', relation: 'Self' },
-        preferredSports: profileData.preferredSports || ['tennis'],
+        preferredSports: profileData.preferredSports || ['box_cricket'],
         attendanceLog: [],
         reminderLog: [],
       };

@@ -17,7 +17,9 @@ import {
   QrCode, 
   Lock,
   LogIn,
-  UserPlus
+  UserPlus,
+  Activity,
+  Shield
 } from 'lucide-react';
 import { generateTimeSlots, calculateEndTime } from '../../lib/booking';
 import { formatINR } from '../../lib/formatters';
@@ -27,7 +29,7 @@ export const BookTrialPage: React.FC = () => {
   const { courts, addBooking, addLead, currentRole, currentUser } = useAppStore();
   const [authPromptOpen, setAuthPromptOpen] = useState(false);
 
-  const prefillSport = (searchParams.get('sport') as SportType) || 'padel';
+  const prefillSport = (searchParams.get('sport') as SportType) || 'box_cricket';
   const prefillDate = searchParams.get('date') || '2026-10-05';
   const prefillTime = searchParams.get('time') || '17:00';
 
@@ -80,7 +82,7 @@ export const BookTrialPage: React.FC = () => {
     if (!formData.fullName || !formData.phone || !formData.email) return;
 
     // 1. Find suitable court for trial booking
-    const primarySport = formData.sports[0] || 'tennis';
+    const primarySport = formData.sports[0] || 'box_cricket';
     const targetCourt = courts.find((c) => c.sport === primarySport) || courts[0];
     const trialFee = formData.trialPassTier === 'premium' ? 299 : 0;
 
@@ -126,10 +128,14 @@ export const BookTrialPage: React.FC = () => {
   };
 
   const sportsOptions: { id: SportType; label: string; icon: any }[] = [
-    { id: 'tennis', label: 'Championship Tennis (Clay & Hard)', icon: Trophy },
-    { id: 'padel', label: 'Panoramic Padel (Mondo Turf)', icon: Flame },
-    { id: 'badminton', label: 'Olympic Badminton (BWF Mat)', icon: Wind },
-    { id: 'cricket', label: 'Cricket Nets (Bowling Machine)', icon: Target },
+    { id: 'box_cricket', label: 'Box Cricket Arena (Artificial Turf)', icon: Target },
+    { id: 'badminton', label: 'Olympic Badminton (Synthetic Mat)', icon: Wind },
+    { id: 'table_tennis', label: 'Table Tennis (Tournament Arena)', icon: Activity },
+    { id: 'volleyball', label: 'Volleyball (Synthetic Court)', icon: Zap },
+    { id: 'kho_kho', label: 'Kho Kho Ground (Prepared Sports Ground)', icon: Flame },
+    { id: 'hockey', label: 'Hockey Turf (Synthetic Arena)', icon: Trophy },
+    { id: 'football', label: 'Football Turf (5-a-Side Arena)', icon: Sparkles },
+    { id: 'kabaddi', label: 'Kabaddi Arena (Pro Mat)', icon: Shield },
   ];
 
   return (

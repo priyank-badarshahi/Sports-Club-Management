@@ -57,7 +57,7 @@ export const PlansPage: React.FC = () => {
     guardianName: '',
     guardianPhone: '',
     guardianRelation: 'Parent',
-    preferredSport: 'tennis' as SportType,
+    preferredSport: 'box_cricket' as SportType,
   });
 
   const [isJuniorAuto, setIsJuniorAuto] = useState(false);

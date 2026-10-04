@@ -493,17 +493,17 @@ export const StaffBookingsPage: React.FC = () => {
 
         {/* Sport Filter Pill Group */}
         <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 p-1 rounded-xl">
-          {(['all', 'tennis', 'padel', 'badminton', 'cricket'] as const).map((s) => (
+          {(['all', 'box_cricket', 'badminton', 'table_tennis', 'volleyball', 'kho_kho', 'hockey', 'football', 'kabaddi'] as const).map((s) => (
             <button
               key={s}
-              onClick={() => setSportFilter(s)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize transition ${
+              onClick={() => setSportFilter(s as any)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize whitespace-nowrap transition ${
                 sportFilter === s
                   ? 'bg-slate-800 text-white font-bold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {s}
+              {s === 'all' ? 'All' : s.replace(/_/g, ' ')}
             </button>
           ))}
         </div>
@@ -892,10 +892,14 @@ export const StaffBookingsPage: React.FC = () => {
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-semibold"
               >
                 <option value="all">All Sports</option>
-                <option value="tennis">Tennis</option>
-                <option value="padel">Padel</option>
+                <option value="box_cricket">Box Cricket</option>
                 <option value="badminton">Badminton</option>
-                <option value="cricket">Cricket</option>
+                <option value="table_tennis">Table Tennis</option>
+                <option value="volleyball">Volleyball</option>
+                <option value="kho_kho">Kho Kho</option>
+                <option value="hockey">Hockey</option>
+                <option value="football">Football</option>
+                <option value="kabaddi">Kabaddi</option>
               </select>
             </div>
 

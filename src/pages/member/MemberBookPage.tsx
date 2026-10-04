@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../../store';
 import { Court, SportType, Booking, MembershipTier } from '../../types';
 import { 
@@ -28,7 +28,10 @@ import {
   Activity,
   History,
   LogIn,
-  UserPlus
+  UserPlus,
+  Target,
+  Wind,
+  Shield
 } from 'lucide-react';
 import { formatINR, getCourtStatusBadge, formatDate, getTierBadgeClass } from '../../lib/formatters';
 import { 
@@ -68,8 +71,17 @@ export const MemberBookPage: React.FC = () => {
   const tier: MembershipTier = hasTier ? ((currentMember?.tier && currentMember.tier !== 'none') ? currentMember.tier : currentUser.tier!) : 'walk_in';
   const plan = plans.find((p) => p.tier === tier);
 
+  // URL query params for prefilled court booking from availability/matrix
+  const [searchParams] = useSearchParams();
+  const paramSport = searchParams.get('sport') as SportType | null;
+  const paramCourtId = searchParams.get('courtId');
+  const paramDate = searchParams.get('date');
+  const paramTime = searchParams.get('time');
+  const paramStep = searchParams.get('step');
+  const paramTab = searchParams.get('tab');
+
   // Main Page View (Wizard vs My Bookings)
-  const [activeTab, setActiveTab] = useState<'wizard' | 'my_bookings'>('wizard');
+  const [activeTab, setActiveTab] = useState<'wizard' | 'my_bookings'>(paramTab === 'my_bookings' ? 'my_bookings' : 'wizard');
 
   // Benefits auto-block check
   const today = new Date();
@@ -80,12 +92,64 @@ export const MemberBookPage: React.FC = () => {
   const isFrozen = currentMember?.status === 'frozen';
   const isBenefitsBlocked = isExpiredPastGrace || isFrozen;
 
-  // Wizard state
-  const [step, setStep] = useState<WizardStep>(1);
-  const [selectedSport, setSelectedSport] = useState<SportType>('tennis');
-  const [selectedDate, setSelectedDate] = useState('2026-10-04');
-  const [selectedTime, setSelectedTime] = useState('18:00');
-  const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
+  // Wizard state initialized from query params if provided
+  const [step, setStep] = useState<WizardStep>(() => {
+    if (paramStep) {
+      const s = parseInt(paramStep, 10);
+      if (s >= 1 && s <= 5) return s as WizardStep;
+    }
+    if (paramCourtId) return 3;
+    return 1;
+  });
+
+  const [selectedSport, setSelectedSport] = useState<SportType>(() => {
+    if (paramSport) return paramSport;
+    if (paramCourtId) {
+      const found = courts.find((c) => c.id === paramCourtId);
+      if (found) return found.sport;
+    }
+    return courts[0]?.sport || 'box_cricket';
+  });
+
+  const [selectedDate, setSelectedDate] = useState(() => paramDate || '2026-10-03');
+  const [selectedTime, setSelectedTime] = useState(() => paramTime || '18:00');
+  const [selectedCourt, setSelectedCourt] = useState<Court | null>(() => {
+    if (paramCourtId) {
+      return courts.find((c) => c.id === paramCourtId) || null;
+    }
+    return null;
+  });
+
+  // Synchronize with URL search parameters
+  useEffect(() => {
+    const sp = searchParams.get('sport') as SportType | null;
+    const cid = searchParams.get('courtId');
+    const dt = searchParams.get('date');
+    const tm = searchParams.get('time');
+    const st = searchParams.get('step');
+    const tb = searchParams.get('tab');
+
+    if (tb === 'my_bookings') {
+      setActiveTab('my_bookings');
+    }
+    if (cid) {
+      const court = courts.find((c) => c.id === cid);
+      if (court) {
+        setSelectedCourt(court);
+        setSelectedSport(court.sport);
+      }
+    } else if (sp) {
+      setSelectedSport(sp);
+    }
+    if (dt) setSelectedDate(dt);
+    if (tm) setSelectedTime(tm);
+    if (st) {
+      const stepNum = parseInt(st, 10);
+      if (stepNum >= 1 && stepNum <= 5) setStep(stepNum as WizardStep);
+    } else if (cid && dt && tm) {
+      setStep(3);
+    }
+  }, [searchParams, courts]);
 
   // Guests & Recurring
   const [guests, setGuests] = useState<{ name: string; phone: string }[]>([]);
@@ -404,36 +468,59 @@ export const MemberBookPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   {
-                    id: 'tennis' as SportType,
-                    name: 'Championship Tennis',
-                    desc: 'European Red Clay & DecoTurf Hardcourt with Musco floodlights',
-                    icon: Trophy,
-                    courtsCount: 2,
-                  },
-                  {
-                    id: 'padel' as SportType,
-                    name: 'Panoramic Padel',
-                    desc: 'Mondo Supercourt XN Turf, tempered glass and LED play',
-                    icon: Flame,
-                    courtsCount: 2,
+                    id: 'box_cricket' as SportType,
+                    name: 'Champions Box Cricket',
+                    desc: 'Enclosed synthetic turf arena with high-intensity LED floodlights',
+                    icon: Target,
                   },
                   {
                     id: 'badminton' as SportType,
-                    name: 'BWF Badminton',
-                    desc: 'BWF-certified 9mm Olympic mats on teakwood sprung floor',
-                    icon: Activity,
-                    courtsCount: 2,
+                    name: 'Indoor Badminton',
+                    desc: 'Professional synthetic mats with glare-free LED lighting & teakwood base',
+                    icon: Wind,
                   },
                   {
-                    id: 'cricket' as SportType,
-                    name: 'Cricket Nets',
-                    desc: 'Synthetic dual-turf with programmable 150 km/h bowling machine',
+                    id: 'table_tennis' as SportType,
+                    name: 'Table Tennis Arena',
+                    desc: 'Tournament tables with non-slip sports flooring & controlled illumination',
+                    icon: Activity,
+                  },
+                  {
+                    id: 'volleyball' as SportType,
+                    name: 'Champions Volleyball',
+                    desc: 'Full-size court with professional net system & high-mast floodlights',
                     icon: Zap,
-                    courtsCount: 2,
+                  },
+                  {
+                    id: 'kho_kho' as SportType,
+                    name: 'Kho Kho Ground',
+                    desc: 'Prepared sports ground with boundary markings, central lanes & poles',
+                    icon: Flame,
+                  },
+                  {
+                    id: 'hockey' as SportType,
+                    name: 'Champions Hockey Turf',
+                    desc: 'Synthetic hockey surface with official markings & stadium illumination',
+                    icon: Trophy,
+                  },
+                  {
+                    id: 'football' as SportType,
+                    name: 'Champions Football Turf',
+                    desc: 'Fast-paced 5-a-side artificial turf arena with perimeter netting',
+                    icon: Sparkles,
+                  },
+                  {
+                    id: 'kabaddi' as SportType,
+                    name: 'Champions Kabaddi Arena',
+                    desc: 'Official standard kabaddi mat arena with spectator seating & lighting',
+                    icon: Shield,
                   },
                 ].map((sport) => {
                   const Icon = sport.icon;
                   const isSelected = selectedSport === sport.id;
+                  const courtForSport = courts.find((c) => c.sport === sport.id);
+                  const sportImage = courtForSport?.image;
+                  const courtsCount = courts.filter((c) => c.sport === sport.id).length;
 
                   return (
                     <div
@@ -442,24 +529,38 @@ export const MemberBookPage: React.FC = () => {
                         setSelectedSport(sport.id);
                         setSelectedCourt(null);
                       }}
-                      className={`p-5 rounded-3xl border cursor-pointer transition-all ${
+                      className={`rounded-3xl border cursor-pointer transition-all overflow-hidden flex flex-col justify-between group ${
                         isSelected
-                          ? 'bg-lime-400/10 border-lime-400 shadow-xl shadow-lime-400/10'
+                          ? 'bg-lime-400/10 border-lime-400 shadow-xl shadow-lime-400/10 ring-1 ring-lime-400'
                           : 'bg-slate-950 border-slate-800 hover:border-slate-700'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center mb-3 ${
-                        isSelected ? 'bg-lime-400 text-slate-950' : 'bg-slate-800 text-slate-300'
-                      }`}>
-                        <Icon className="w-5 h-5" />
-                      </div>
+                      {sportImage && (
+                        <div className="relative h-28 w-full overflow-hidden border-b border-slate-800/80">
+                          <img
+                            src={sportImage}
+                            alt={sport.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+                          <div className={`absolute top-2.5 left-2.5 w-8 h-8 rounded-xl flex items-center justify-center shadow-md ${
+                            isSelected ? 'bg-lime-400 text-slate-950' : 'bg-slate-900/90 text-slate-300 border border-slate-700'
+                          }`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                        </div>
+                      )}
 
-                      <h4 className="font-heading font-bold text-white text-base">{sport.name}</h4>
-                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{sport.desc}</p>
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-heading font-bold text-white text-sm">{sport.name}</h4>
+                          <p className="text-[11px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">{sport.desc}</p>
+                        </div>
 
-                      <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                        <span className="text-slate-500 font-medium">{sport.courtsCount} Courts</span>
-                        <span className="text-lime-400 font-bold capitalize">Select →</span>
+                        <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                          <span className="text-slate-500 font-medium text-[11px]">{courtsCount} {courtsCount === 1 ? 'Arena' : 'Courts'}</span>
+                          <span className="text-lime-400 font-bold capitalize text-[11px]">Select →</span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -591,8 +692,17 @@ export const MemberBookPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="text-xs text-lime-400 font-mono font-semibold">
-                  {sportCourts.length} {selectedSport.toUpperCase()} Courts Registered
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-lime-400 font-mono font-semibold">
+                    {sportCourts.length} {selectedSport.toUpperCase().replace('_', ' ')} Courts Registered
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-[11px] text-slate-400 hover:text-white underline ml-2"
+                  >
+                    Change Sport
+                  </button>
                 </div>
               </div>
 
@@ -607,8 +717,22 @@ export const MemberBookPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {sportCourts.map((court) => {
+              {sportCourts.length === 0 ? (
+                <div className="p-8 text-center bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                  <p className="text-slate-400 text-sm">
+                    No courts registered for <strong className="text-white capitalize">{selectedSport.replace('_', ' ')}</strong>.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="px-5 py-2.5 rounded-xl bg-lime-400 text-slate-950 font-bold text-xs shadow-md shadow-lime-400/20"
+                  >
+                    Select Another Sport
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {sportCourts.map((court) => {
                   const check = validateSlotAvailability(
                     court.id,
                     selectedDate,
@@ -652,6 +776,20 @@ export const MemberBookPage: React.FC = () => {
                         </span>
                       </div>
 
+                      {court.image && (
+                        <div className="relative h-36 rounded-2xl overflow-hidden mb-3 border border-slate-800">
+                          <img
+                            src={court.image}
+                            alt={court.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                          <span className="absolute bottom-2 left-2 text-[10px] font-semibold text-white bg-slate-950/80 backdrop-blur-md px-2 py-0.5 rounded border border-slate-700">
+                            {court.surface}
+                          </span>
+                        </div>
+                      )}
+
                       <h4 className="font-heading font-bold text-white text-base">{court.name}</h4>
                       <p className="text-xs text-slate-400 mt-0.5">{court.surface}</p>
 
@@ -679,6 +817,7 @@ export const MemberBookPage: React.FC = () => {
                   );
                 })}
               </div>
+              )}
 
               <div className="flex justify-between pt-2 border-t border-slate-800">
                 <button
@@ -845,6 +984,20 @@ export const MemberBookPage: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left: Booking Summary & Itemized Breakdown */}
                 <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-4 text-xs">
+                  {selectedCourt?.image && (
+                    <div className="relative h-32 rounded-2xl overflow-hidden border border-slate-800 mb-2">
+                      <img
+                        src={selectedCourt.image}
+                        alt={selectedCourt.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                      <span className="absolute bottom-2 left-2 text-[10px] font-bold text-lime-400 bg-slate-950/80 px-2.5 py-0.5 rounded border border-slate-700">
+                        {selectedCourt.name}
+                      </span>
+                    </div>
+                  )}
+
                   <h4 className="font-heading font-bold text-sm text-white">Reservation Summary</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">

@@ -37,7 +37,7 @@ export const MemberRegistrationModal: React.FC = () => {
     guardianName: '',
     guardianPhone: '',
     guardianRelation: 'Parent',
-    preferredSports: ['tennis'] as SportType[],
+    preferredSports: ['box_cricket'] as SportType[],
     planTier: 'gold' as MembershipTier,
     billingCycle: 'annual' as 'monthly' | 'quarterly' | 'annual',
     startDate: new Date().toISOString().split('T')[0],
@@ -399,10 +399,14 @@ export const MemberRegistrationModal: React.FC = () => {
               <label className="text-slate-300 font-semibold block mb-2">Preferred Sports</label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
-                  { id: 'tennis', label: 'Tennis' },
-                  { id: 'padel', label: 'Padel' },
+                  { id: 'box_cricket', label: 'Box Cricket' },
                   { id: 'badminton', label: 'Badminton' },
-                  { id: 'cricket', label: 'Cricket Nets' },
+                  { id: 'table_tennis', label: 'Table Tennis' },
+                  { id: 'volleyball', label: 'Volleyball' },
+                  { id: 'kho_kho', label: 'Kho Kho' },
+                  { id: 'hockey', label: 'Hockey' },
+                  { id: 'football', label: 'Football' },
+                  { id: 'kabaddi', label: 'Kabaddi' },
                 ].map((s) => (
                   <button
                     key={s.id}

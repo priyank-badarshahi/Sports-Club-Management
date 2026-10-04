@@ -106,15 +106,57 @@ export function getCourtStatusBadge(status: CourtStatus): { label: string; class
 
 export function getSportIconName(sport: string): string {
   switch (sport) {
+    case 'box_cricket':
+    case 'cricket':
+      return 'Target';
+    case 'badminton':
+      return 'Wind';
+    case 'table_tennis':
+      return 'Activity';
+    case 'volleyball':
+      return 'Zap';
+    case 'kho_kho':
+      return 'Flame';
+    case 'hockey':
+      return 'Trophy';
+    case 'football':
+      return 'Sparkles';
+    case 'kabaddi':
+      return 'Shield';
     case 'tennis':
       return 'Trophy';
     case 'padel':
       return 'Flame';
-    case 'badminton':
-      return 'Wind';
-    case 'cricket':
-      return 'Target';
     default:
       return 'Activity';
+  }
+}
+
+export function getSportDisplayName(sport: string): string {
+  switch (sport) {
+    case 'box_cricket':
+      return 'Box Cricket';
+    case 'badminton':
+      return 'Badminton';
+    case 'table_tennis':
+      return 'Table Tennis';
+    case 'volleyball':
+      return 'Volleyball';
+    case 'kho_kho':
+      return 'Kho Kho';
+    case 'hockey':
+      return 'Hockey';
+    case 'football':
+      return 'Football';
+    case 'kabaddi':
+      return 'Kabaddi';
+    case 'tennis':
+      return 'Tennis';
+    case 'padel':
+      return 'Padel';
+    case 'cricket':
+      return 'Cricket Nets';
+    default:
+      return sport ? sport.replace(/_/g, ' ') : '';
   }
 }
