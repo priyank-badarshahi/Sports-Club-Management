@@ -175,6 +175,7 @@ interface AppState {
   currentUser: UserProfile;
   setRole: (role: Role) => void;
   toggleTheme: () => void;
+  setTheme: (theme: 'dark' | 'light') => void;
 
   // Data
   members: Member[];
@@ -432,6 +433,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   toggleTheme: () => {
     const newTheme = get().theme === 'dark' ? 'light' : 'dark';
+    if (typeof document !== 'undefined') {
+      if (newTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.classList.remove('light');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      }
+    }
+    set({ theme: newTheme });
+    persist(get());
+  },
+
+  setTheme: (newTheme: 'dark' | 'light') => {
     if (typeof document !== 'undefined') {
       if (newTheme === 'dark') {
         document.documentElement.classList.add('dark');

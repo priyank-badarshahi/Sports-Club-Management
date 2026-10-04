@@ -21,7 +21,9 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  Camera
+  Camera,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { formatDateTime } from '../lib/formatters';
 
@@ -51,7 +53,10 @@ export const Header: React.FC<HeaderProps> = ({
     markNotificationRead, 
     markAllNotificationsRead,
     resetDemoData,
-    addToast
+    addToast,
+    theme,
+    toggleTheme,
+    setTheme
   } = useAppStore();
 
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
@@ -258,14 +263,14 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-heading font-extrabold text-lg tracking-tight text-white group-hover:text-lime-400 transition-colors">
-                  CHAMPIONS
+                  SPORTS CLUB
                 </span>
                 <span className="font-heading font-bold text-xs uppercase px-1.5 py-0.5 rounded bg-lime-400/10 text-lime-400 border border-lime-400/25 tracking-widest">
-                  CLUB
+                  GUJARAT
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium hidden sm:block -mt-1">
-                Tennis • Padel • Badminton • Cricket
+                Ahmedabad • 6 Multi-Sport Facilities
               </p>
             </div>
           </Link>
@@ -381,6 +386,30 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
+          {/* Theme Switcher Button */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-xl border flex items-center gap-1.5 text-xs font-semibold transition-all duration-150 ${
+              theme === 'dark'
+                ? 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white shadow-sm'
+                : 'bg-slate-100 border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-950 shadow-sm'
+            }`}
+            title={`Active Theme: ${theme.toUpperCase()} (Click to switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode)`}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Moon className="w-4 h-4 text-lime-400 transition-transform duration-200 hover:-rotate-12" />
+                <span className="hidden sm:inline font-mono text-[11px] text-slate-300">Dark</span>
+              </>
+            ) : (
+              <>
+                <Sun className="w-4 h-4 text-amber-500 transition-transform duration-200 hover:rotate-45" />
+                <span className="hidden sm:inline font-mono text-[11px] text-slate-700">Light</span>
+              </>
+            )}
+          </button>
+
           {/* Role Switcher Dropdown */}
           <div className="relative" ref={roleRef}>
             <button
@@ -447,6 +476,42 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div className="p-2 bg-slate-950/80 border-t border-slate-800 flex flex-col gap-1.5 text-xs">
+                  {/* Theme Switcher Segmented Control */}
+                  <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-300 font-medium">
+                      {theme === 'dark' ? (
+                        <Moon className="w-3.5 h-3.5 text-lime-400" />
+                      ) : (
+                        <Sun className="w-3.5 h-3.5 text-amber-400" />
+                      )}
+                      <span>Theme</span>
+                    </div>
+                    <div className="inline-flex p-0.5 rounded-lg bg-slate-950 border border-slate-800 text-[10px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setTheme('light')}
+                        className={`px-2 py-1 rounded-md transition ${
+                          theme === 'light'
+                            ? 'bg-amber-400 text-slate-950 font-bold shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Light
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTheme('dark')}
+                        className={`px-2 py-1 rounded-md transition ${
+                          theme === 'dark'
+                            ? 'bg-lime-400 text-slate-950 font-bold shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Dark
+                      </button>
+                    </div>
+                  </div>
+
                   {currentRole === 'member' && (
                     <Link
                       to="/member/profile"
