@@ -81,28 +81,21 @@ export const Footer: React.FC = () => {
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-lime-400 shrink-0" />
-                <span>{settings.phone}</span>
+                <span>+91 8128559262</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-lime-400 shrink-0" />
-                <span>{settings.email}</span>
-              </li>
-              <li className="flex items-start gap-2">
+                <span>ghmilan66@gmail.com</span>
+              </li><li className="flex items-start gap-2">
                 <MapPin className="w-3.5 h-3.5 text-lime-400 shrink-0 mt-0.5" />
-                <span className="line-clamp-2">{settings.address}</span>
+                <span className="line-clamp-2">Sports Club of Gujarat</span>
               </li>
             </ul>
           </div>
         </div>
 
         {/* Bottom bar */}
-        <div className="pt-8 mt-8 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-          <p>© 2026 {settings.clubName}. All rights reserved. GST Registered: {settings.gstNumber}</p>
-          <div className="flex items-center gap-4">
-            <span className="text-slate-400">Powered by Champions Club OS</span>
-            <Link to="/login" className="hover:text-lime-400 transition font-medium">Staff & Member Portal</Link>
-          </div>
-        </div>
+
       </div>
     </footer>
   );

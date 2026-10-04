@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <radialGradient id="spotlight" cx="50%" cy="45%" r="48%">
+      <stop offset="0%" stop-color="#a3e635" stop-opacity="0.16"/>
+      <stop offset="60%" stop-color="#38bdf8" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="500" height="500" rx="28" fill="url(#bgGrad)"/>
+  <circle cx="250" cy="225" r="215" fill="url(#spotlight)"/>
+  <rect x="12" y="12" width="476" height="476" rx="20" fill="none" stroke="#334155" stroke-width="1.2" stroke-opacity="0.4"/>
+
+  <!-- Top Sport Badge -->
+  <g transform="translate(28, 28)">
+    <rect width="130" height="26" rx="13" fill="#020617" fill-opacity="0.85" stroke="#334155" stroke-width="1"/>
+    <circle cx="14" cy="13" r="4" fill="#a3e635"/>
+    <text x="26" y="17" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="700" letter-spacing="1">BOX CRICKET</text>
+  </g>
+
+  <!-- Category Badge -->
+  <g transform="translate(345, 28)">
+    <rect width="125" height="26" rx="13" fill="#a3e635" fill-opacity="0.12" stroke="#a3e635" stroke-width="1" stroke-opacity="0.3"/>
+    <text x="62" y="17" text-anchor="middle" fill="#bef264" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="800" letter-spacing="0.5">BALLS</text>
+  </g>
+
+  <!-- Product Vector Illustration -->
+  <g filter="url(#shadow)">
+    
+        <g transform="translate(250, 220)">
+          <circle cx="0" cy="0" r="85" fill="#eab308" stroke="#ca8a04" stroke-width="3"/>
+          <circle cx="-25" cy="-25" r="75" fill="#fde047" opacity="0.3"/>
+          <path d="M-60 -60 Q0 -30 60 -60" fill="none" stroke="#dc2626" stroke-width="5" stroke-dasharray="7,4"/>
+          <path d="M-60 60 Q0 30 60 60" fill="none" stroke="#dc2626" stroke-width="5" stroke-dasharray="7,4"/>
+          <text x="0" y="-5" fill="#713f12" font-size="12" font-family="sans-serif" font-weight="900" text-anchor="middle">HEAVY</text>
+          <text x="0" y="12" fill="#991b1b" font-size="10" font-family="sans-serif" font-weight="800" text-anchor="middle">125g TURF</text>
+        </g>
+  </g>
+
+  <!-- Bottom Title Plate -->
+  <g transform="translate(25, 415)">
+    <rect width="450" height="60" rx="16" fill="#020617" fill-opacity="0.92" stroke="#1e293b" stroke-width="1"/>
+    <text x="225" y="28" text-anchor="middle" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="800">Heavy Tennis Cricket Ball</text>
+    <text x="225" y="47" text-anchor="middle" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" letter-spacing="0.5">CHAMPIONS CLUB OFFICIAL EQUIPMENT</text>
+  </g>
+</svg>

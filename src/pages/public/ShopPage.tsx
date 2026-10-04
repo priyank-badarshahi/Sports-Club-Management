@@ -28,6 +28,18 @@ import {
 import { formatINR, formatDateTime, getTierBadgeClass } from '../../lib/formatters';
 import { getMemberShopDiscountPercent, getAvailableStock } from '../../lib/inventory';
 
+export const SPORT_FILTER_TABS = [
+  { id: 'all', label: 'All Products', icon: '🏆' },
+  { id: 'box_cricket', label: 'Box Cricket', icon: '🏏' },
+  { id: 'badminton', label: 'Badminton', icon: '🏸' },
+  { id: 'table_tennis', label: 'Table Tennis', icon: '🏓' },
+  { id: 'volleyball', label: 'Volleyball', icon: '🏐' },
+  { id: 'kho_kho', label: 'Kho Kho', icon: '🏃' },
+  { id: 'hockey', label: 'Hockey', icon: '🏑' },
+  { id: 'football', label: 'Football', icon: '⚽' },
+  { id: 'kabaddi', label: 'Kabaddi', icon: '🤼' },
+];
+
 export const ShopPage: React.FC = () => {
   const { products, currentUser, orders, recordSale, addToast } = useAppStore();
 
@@ -39,8 +51,10 @@ export const ShopPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSport, setSelectedSport] = useState<string>('all');
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedSkillLevel, setSelectedSkillLevel] = useState<string>('all');
+  const [selectedPriceRange, setSelectedPriceRange] = useState<string>('all');
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<'featured' | 'price_low' | 'price_high' | 'name'>('featured');
+  const [sortBy, setSortBy] = useState<'featured' | 'price_low' | 'price_high' | 'newest' | 'name'>('featured');
 
   // Cart & Wishlist State
   const [cart, setCart] = useState<{
@@ -63,6 +77,7 @@ export const ShopPage: React.FC = () => {
   const [modalSelectedVariant, setModalSelectedVariant] = useState<string>('');
   const [modalTension, setModalTension] = useState<number>(26);
   const [modalExpress, setModalExpress] = useState<boolean>(false);
+  const [modalQty, setModalQty] = useState<number>(1);
 
   // Checkout Form State
   const [deliveryType, setDeliveryType] = useState<'online_pickup' | 'online_delivery'>('online_pickup');
@@ -103,26 +118,53 @@ export const ShopPage: React.FC = () => {
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
-        const matchesSearch = !searchQuery || 
-          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.sku.toLowerCase().includes(searchQuery.toLowerCase());
+        const q = searchQuery.toLowerCase().trim();
+        const matchesSearch = !q || 
+          p.name.toLowerCase().includes(q) ||
+          p.brand.toLowerCase().includes(q) ||
+          p.sku.toLowerCase().includes(q) ||
+          p.sport.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q) ||
+          (p.shortDescription || '').toLowerCase().includes(q) ||
+          (p.description || '').toLowerCase().includes(q) ||
+          (p.material || '').toLowerCase().includes(q) ||
+          (p.skillLevel || '').toLowerCase().includes(q);
         
         const matchesCat = selectedCategory === 'all' || p.category === selectedCategory;
         const matchesSport = selectedSport === 'all' || p.sport === selectedSport;
         const matchesBrand = selectedBrand === 'all' || p.brand === selectedBrand;
+
+        const effectivePrice = Math.round(p.price * (1 - discountPct / 100));
+        const matchesPrice = (() => {
+          if (selectedPriceRange === 'all') return true;
+          if (selectedPriceRange === 'under_500') return effectivePrice < 500;
+          if (selectedPriceRange === '500_1500') return effectivePrice >= 500 && effectivePrice <= 1500;
+          if (selectedPriceRange === '1500_5000') return effectivePrice > 1500 && effectivePrice <= 5000;
+          if (selectedPriceRange === '5000_plus') return effectivePrice > 5000;
+          return true;
+        })();
+
+        const matchesSkill = selectedSkillLevel === 'all' ||
+          !p.skillLevel ||
+          p.skillLevel === selectedSkillLevel ||
+          p.skillLevel === 'All Levels' ||
+          selectedSkillLevel === 'All Levels';
+
         const avail = getAvailableStock(p);
         const matchesStock = !inStockOnly || p.isServiceItem || avail > 0;
 
-        return matchesSearch && matchesCat && matchesSport && matchesBrand && matchesStock;
+        return matchesSearch && matchesCat && matchesSport && matchesBrand && matchesPrice && matchesSkill && matchesStock;
       })
       .sort((a, b) => {
         if (sortBy === 'price_low') return a.price - b.price;
         if (sortBy === 'price_high') return b.price - a.price;
         if (sortBy === 'name') return a.name.localeCompare(b.name);
-        return 0; // featured default
+        if (sortBy === 'newest') return (b.id || '').localeCompare(a.id || '');
+        // featured sort: featured products first
+        if ((b.featured ? 1 : 0) !== (a.featured ? 1 : 0)) return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+        return 0;
       });
-  }, [products, searchQuery, selectedCategory, selectedSport, selectedBrand, inStockOnly, sortBy]);
+  }, [products, searchQuery, selectedCategory, selectedSport, selectedBrand, selectedPriceRange, selectedSkillLevel, inStockOnly, sortBy, discountPct]);
 
   // Wishlist Toggle
   const toggleWishlist = (productId: string, e?: React.MouseEvent) => {
@@ -298,7 +340,7 @@ export const ShopPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-lime-400">
-              Official Pro Shop & Racquet Workshop
+              Champions Club Sports Equipment Store
             </span>
             {discountPct > 0 && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950 uppercase">
@@ -307,10 +349,10 @@ export const ShopPage: React.FC = () => {
             )}
           </div>
           <h1 className="font-heading font-extrabold text-3xl sm:text-4xl text-white mt-1">
-            Champions Club Gear Shop
+            Champions Club ProShop
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Authorized tournament gear from Wilson, Babolat, Yonex & Bullpadel. Same-day counter pickup or home delivery.
+            Official equipment, protective gear, apparel &amp; accessories for Box Cricket, Badminton, Hockey, Football, Volleyball, Table Tennis, Kho Kho &amp; Kabaddi.
           </p>
         </div>
 
@@ -370,85 +412,86 @@ export const ShopPage: React.FC = () => {
       {/* ========================================================================= */}
       {activeView === 'catalog' && (
         <div className="space-y-6">
-          {/* Filters and Search Bar */}
-          <div className="p-4 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 shadow-xl">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-              <div className="relative flex-1 w-full">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search racquets, balls, grips, strings, footwear..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-lime-400"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
-                <select
-                  value={selectedSport}
-                  onChange={(e) => setSelectedSport(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
-                >
-                  <option value="all">All Sports</option>
-                  <option value="tennis">Tennis</option>
-                  <option value="padel">Padel</option>
-                  <option value="badminton">Badminton</option>
-                  <option value="cricket">Cricket</option>
-                </select>
-
-                <select
-                  value={selectedBrand}
-                  onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
-                >
-                  <option value="all">All Brands</option>
-                  {brands.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
-                >
-                  <option value="featured">Sort: Featured</option>
-                  <option value="price_low">Price: Low to High</option>
-                  <option value="price_high">Price: High to Low</option>
-                  <option value="name">Product Name</option>
-                </select>
-
-                <label className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-300 cursor-pointer whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    checked={inStockOnly}
-                    onChange={(e) => setInStockOnly(e.target.checked)}
-                    className="accent-lime-400 rounded"
-                  />
-                  <span>In-Stock Only</span>
-                </label>
-              </div>
+          {/* Main Sport Filter Navigation Bar */}
+          <div className="p-3.5 rounded-3xl bg-slate-900 border border-slate-800 shadow-xl space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
+                Official Club Sports Equipment
+              </span>
+              <span className="text-[11px] text-slate-500 font-mono">
+                {products.length} Items Catalogued
+              </span>
             </div>
 
-            {/* Category Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {/* 10 Main Sport Filter Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              {SPORT_FILTER_TABS.map((sport) => {
+                const isSelected = selectedSport === sport.id;
+                const count = sport.id === 'all'
+                  ? products.length
+                  : products.filter(p => p.sport === sport.id || (p.compatibleSports && p.compatibleSports.includes(sport.id as any))).length;
+
+                return (
+                  <button
+                    key={sport.id}
+                    onClick={() => {
+                      setSelectedSport(sport.id);
+                      setSelectedCategory('all');
+                    }}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-lime-400 text-slate-950 shadow-lg shadow-lime-400/25 scale-[1.02]'
+                        : 'bg-slate-950 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-slate-800'
+                    }`}
+                  >
+                    <span className="text-sm">{sport.icon}</span>
+                    <span>{sport.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      isSelected ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Combined Filters & Search Bar */}
+          <div className="p-4 rounded-3xl bg-slate-900 border border-slate-800 space-y-3 shadow-xl">
+            {/* Row 1: Search Input */}
+            <div className="relative w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search by product name, brand, sport, material, skill level, or specification..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-lime-400"
+              />
+            </div>
+
+            {/* Row 2: Category Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
               {[
-                { id: 'all', label: 'All Gear' },
-                { id: 'rackets', label: 'Racquets & Bats' },
-                { id: 'strings', label: 'Strings & Reels' },
-                { id: 'grips', label: 'Grips & Overgrips' },
+                { id: 'all', label: 'All Equipment' },
+                { id: 'bats', label: 'Bats' },
+                { id: 'rackets', label: 'Racquets' },
                 { id: 'balls', label: 'Balls & Shuttles' },
-                { id: 'shoes', label: 'Court Shoes' },
-                { id: 'bags', label: 'Racquet Bags' },
-                { id: 'apparel', label: 'Apparel' },
+                { id: 'equipment', label: 'Court Nets & Gear' },
+                { id: 'protective', label: 'Protective Gear' },
+                { id: 'shoes', label: 'Footwear' },
+                { id: 'bags', label: 'Bags & Kitbags' },
+                { id: 'apparel', label: 'Jerseys & Apparel' },
                 { id: 'accessories', label: 'Accessories' },
+                { id: 'strings', label: 'Strings & Grips' },
                 { id: 'services', label: 'Workshop Services' },
               ].map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
                     selectedCategory === cat.id
                       ? 'bg-lime-400 text-slate-950 shadow-md shadow-lime-400/20'
                       : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
@@ -458,6 +501,106 @@ export const ShopPage: React.FC = () => {
                 </button>
               ))}
             </div>
+
+            {/* Row 3: Dropdown Filters (Price Range, Skill Level, Brand, Sort, In-Stock) */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold mr-1">
+                <SlidersHorizontal className="w-3.5 h-3.5 text-lime-400" />
+                <span>Filters:</span>
+              </div>
+
+              {/* Price Range Filter */}
+              <select
+                value={selectedPriceRange}
+                onChange={(e) => setSelectedPriceRange(e.target.value)}
+                className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="all">Price: All Ranges</option>
+                <option value="under_500">Under ₹500</option>
+                <option value="500_1500">₹500 - ₹1,500</option>
+                <option value="1500_5000">₹1,500 - ₹5,000</option>
+                <option value="5000_plus">₹5,000 &amp; Above</option>
+              </select>
+
+              {/* Skill Level Filter */}
+              <select
+                value={selectedSkillLevel}
+                onChange={(e) => setSelectedSkillLevel(e.target.value)}
+                className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="all">Skill: All Levels</option>
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+                <option value="Professional">Professional</option>
+              </select>
+
+              {/* Brand Filter */}
+              <select
+                value={selectedBrand}
+                onChange={(e) => setSelectedBrand(e.target.value)}
+                className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="all">Brand: All Brands</option>
+                {brands.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+
+              {/* Sort By */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="featured">Sort: Recommended</option>
+                <option value="price_low">Price: Low to High</option>
+                <option value="price_high">Price: High to Low</option>
+                <option value="newest">Sort: Newest</option>
+                <option value="name">Product Name (A-Z)</option>
+              </select>
+
+              {/* In-Stock Toggle */}
+              <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-300 cursor-pointer whitespace-nowrap ml-auto">
+                <input
+                  type="checkbox"
+                  checked={inStockOnly}
+                  onChange={(e) => setInStockOnly(e.target.checked)}
+                  className="accent-lime-400 rounded"
+                />
+                <span>In-Stock Only</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Results summary + clear filters */}
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs text-slate-400">
+              Showing <span className="text-white font-bold">{filteredProducts.length}</span> matching product{filteredProducts.length !== 1 ? 's' : ''}
+              {selectedSport !== 'all' && <span> in <span className="text-lime-400 font-bold capitalize">{selectedSport.replace(/_/g, ' ')}</span></span>}
+              {selectedCategory !== 'all' && <span> • Category: <span className="text-slate-200 font-semibold capitalize">{selectedCategory}</span></span>}
+              {selectedPriceRange !== 'all' && <span> • Filtered by Price</span>}
+              {selectedSkillLevel !== 'all' && <span> • Skill: <span className="text-slate-200">{selectedSkillLevel}</span></span>}
+              {inStockOnly && <span> • In-Stock</span>}
+            </span>
+            {(selectedSport !== 'all' || selectedCategory !== 'all' || selectedBrand !== 'all' || selectedPriceRange !== 'all' || selectedSkillLevel !== 'all' || inStockOnly || searchQuery) && (
+              <button
+                onClick={() => {
+                  setSelectedSport('all');
+                  setSelectedCategory('all');
+                  setSelectedBrand('all');
+                  setSelectedPriceRange('all');
+                  setSelectedSkillLevel('all');
+                  setInStockOnly(false);
+                  setSearchQuery('');
+                  setSortBy('featured');
+                }}
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800"
+              >
+                <RotateCcw className="w-3 h-3 text-lime-400" />
+                Clear All Filters
+              </button>
+            )}
           </div>
 
           {/* Product Cards Grid */}
@@ -476,15 +619,17 @@ export const ShopPage: React.FC = () => {
                   onClick={() => {
                     setSelectedProductForModal(product);
                     setModalSelectedVariant(product.variants?.[0]?.size || '');
+                    setModalQty(1);
                   }}
                   className="rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition overflow-hidden flex flex-col justify-between shadow-xl group cursor-pointer relative"
                 >
                   <div>
-                    <div className="relative h-52 w-full overflow-hidden bg-slate-950">
+                    <div className="relative h-52 w-full overflow-hidden bg-slate-950 p-2">
                       <img
                         src={product.image}
                         alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/images/proshop/placeholder.svg'; }}
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                       />
                       
                       {/* Brand & Stock Status Badges */}
@@ -529,16 +674,16 @@ export const ShopPage: React.FC = () => {
                     <div className="p-5 space-y-2">
                       <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
                         <span>{product.sku}</span>
-                        <span className="text-lime-400 capitalize">{product.sport}</span>
+                        <span className="text-lime-400 capitalize">{product.sport.replace(/_/g, ' ')} • {product.category}</span>
                       </div>
                       <h3 className="font-heading font-bold text-sm text-white line-clamp-2 group-hover:text-lime-300 transition-colors">
                         {product.name}
                       </h3>
-                      <p className="text-xs text-slate-400 line-clamp-2">{product.description}</p>
+                      <p className="text-xs text-slate-400 line-clamp-2">{product.shortDescription || product.description}</p>
                     </div>
                   </div>
 
-                  <div className="p-5 pt-0 border-t border-slate-800/80 mt-2 flex items-center justify-between">
+                  <div className="p-4 pt-0 border-t border-slate-800/80 mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div>
                       <div className="flex items-baseline gap-1.5">
                         <span className="font-heading font-extrabold text-base text-white">
@@ -550,24 +695,42 @@ export const ShopPage: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-500">+ 18% GST</span>
+                      <span className="text-[10px] text-slate-500">+ {product.gstPercent || 18}% GST</span>
                     </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addToCart(product);
-                      }}
-                      disabled={isOut}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                        isOut
-                          ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
-                          : 'bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-md shadow-lime-400/20'
-                      }`}
-                    >
-                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                      <span>{isService ? 'Configure' : 'Add'}</span>
-                    </button>
+                    <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProductForModal(product);
+                          setModalSelectedVariant(product.variants?.[0]?.size || '');
+                          setModalQty(1);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1"
+                        title="View Full Specifications & Details"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-lime-400" />
+                        <span>View Details</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToCart(product);
+                        }}
+                        disabled={isOut}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                          isOut
+                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                            : 'bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-md shadow-lime-400/20'
+                        }`}
+                      >
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>{isService ? 'Configure' : 'Add to Cart'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -1087,86 +1250,249 @@ export const ShopPage: React.FC = () => {
       {/* ========================================================================= */}
       {/* QUICK VIEW / DETAIL MODAL */}
       {/* ========================================================================= */}
-      {selectedProductForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-xl bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <span className="text-xs font-mono text-lime-400 font-bold">{selectedProductForModal.sku}</span>
-              <button onClick={() => setSelectedProductForModal(null)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {selectedProductForModal && (() => {
+        const mp = selectedProductForModal;
+        const available = getAvailableStock(mp);
+        const tierPrice = getTierPrice(mp.price);
+        const isOut = !mp.isServiceItem && available === 0;
+        const relatedProducts = products
+          .filter(p => p.sport === mp.sport && p.id !== mp.id)
+          .slice(0, 4);
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <img
-                src={selectedProductForModal.image}
-                alt={selectedProductForModal.name}
-                className="w-full h-56 object-cover rounded-2xl bg-slate-950"
-              />
-              <div className="space-y-2 text-xs">
-                <span className="text-[10px] font-bold uppercase text-lime-400">{selectedProductForModal.brand} • {selectedProductForModal.sport}</span>
-                <h3 className="font-heading font-bold text-base text-white">{selectedProductForModal.name}</h3>
-                <p className="text-slate-400 text-xs leading-relaxed">{selectedProductForModal.description}</p>
-
-                <div className="pt-2">
-                  <span className="font-heading font-extrabold text-lg text-white">
-                    {formatINR(getTierPrice(selectedProductForModal.price))}
-                  </span>
-                  {discountPct > 0 && (
-                    <span className="text-xs text-slate-500 line-through ml-2">
-                      {formatINR(selectedProductForModal.price)}
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+            <div className="w-full max-w-2xl bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl my-4">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-5 border-b border-slate-800">
+                <div>
+                  <span className="text-[10px] font-mono text-lime-400 font-bold">{mp.sku}</span>
+                  {mp.skillLevel && (
+                    <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold capitalize">
+                      {mp.skillLevel}
                     </span>
                   )}
                 </div>
+                <button onClick={() => setSelectedProductForModal(null)} className="text-slate-400 hover:text-white transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-                {/* Variants if available */}
-                {selectedProductForModal.variants && selectedProductForModal.variants.length > 0 && (
-                  <div className="space-y-1 pt-2">
-                    <label className="text-slate-400 block text-[10px] uppercase font-bold">Select Size / Variant</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedProductForModal.variants.map((v) => (
+              <div className="p-5 space-y-5">
+                {/* Image + Core Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <img
+                      src={mp.image}
+                      alt={mp.name}
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/images/proshop/placeholder.svg'; }}
+                      className="w-full h-56 object-contain p-3 rounded-2xl bg-slate-950"
+                    />
+                    {/* Additional images if available */}
+                    {mp.images && mp.images.length > 1 && (
+                      <div className="flex gap-2 overflow-x-auto">
+                        {mp.images.slice(1, 4).map((img, i) => (
+                          <img
+                            key={i}
+                            src={img}
+                            alt={`${mp.name} view ${i + 2}`}
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/images/proshop/placeholder.svg'; }}
+                            className="w-16 h-16 object-cover rounded-xl bg-slate-950 border border-slate-800 flex-shrink-0"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    {/* Brand + Sport */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold uppercase text-lime-400">{mp.brand}</span>
+                      <span className="text-slate-600">•</span>
+                      <span className="text-[10px] text-slate-400 capitalize">{mp.sport.replace('_', ' ')}</span>
+                      <span className="text-slate-600">•</span>
+                      <span className="text-[10px] text-slate-400 capitalize">{mp.category}</span>
+                    </div>
+
+                    {/* Name */}
+                    <h3 className="font-heading font-bold text-lg text-white leading-tight">{mp.name}</h3>
+
+                    {/* Description */}
+                    <p className="text-slate-400 leading-relaxed">{mp.description}</p>
+
+                    {/* Price */}
+                    <div className="pt-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-heading font-extrabold text-xl text-white">
+                          {formatINR(tierPrice)}
+                        </span>
+                        {discountPct > 0 && (
+                          <>
+                            <span className="text-sm text-slate-500 line-through">{formatINR(mp.price)}</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-400 font-bold">{discountPct}% off</span>
+                          </>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-500">+ {mp.gstPercent || 18}% GST</span>
+                    </div>
+
+                    {/* Stock Status */}
+                    <div>
+                      {mp.isServiceItem ? (
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 font-semibold">Workshop Service</span>
+                      ) : isOut ? (
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 font-semibold">Out of Stock</span>
+                      ) : (
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold">
+                          In Stock — {available} available
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Variants */}
+                    {mp.variants && mp.variants.length > 0 && (
+                      <div className="space-y-1 pt-1">
+                        <label className="text-slate-400 block text-[10px] uppercase font-bold">Size / Variant</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {mp.variants.map((v) => (
+                            <button
+                              key={v.id}
+                              type="button"
+                              onClick={() => setModalSelectedVariant(v.size || '')}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
+                                modalSelectedVariant === v.size
+                                  ? 'bg-lime-400 text-slate-950 border-lime-400'
+                                  : 'bg-slate-950 text-slate-300 border-slate-700'
+                              } ${v.stockQty === 0 ? 'opacity-40 line-through' : ''}`}
+                            >
+                              {v.size} {v.weight ? `· ${v.weight}` : ''}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Specifications Grid */}
+                {(mp.material || mp.skillLevel || mp.intendedUse || mp.warranty || mp.specifications) && (
+                  <div className="bg-slate-950 rounded-2xl p-4 space-y-3">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Specifications</h4>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                      {mp.material && (
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Material</span>
+                          <span className="text-xs text-white font-medium">{mp.material}</span>
+                        </div>
+                      )}
+                      {mp.skillLevel && (
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Skill Level</span>
+                          <span className="text-xs text-white font-medium">{mp.skillLevel}</span>
+                        </div>
+                      )}
+                      {mp.intendedUse && (
+                        <div className="col-span-2">
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Intended Use</span>
+                          <span className="text-xs text-white font-medium">{mp.intendedUse}</span>
+                        </div>
+                      )}
+                      {mp.warranty && (
+                        <div>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Warranty</span>
+                          <span className="text-xs text-white font-medium">{mp.warranty}</span>
+                        </div>
+                      )}
+                      {mp.specifications && Object.entries(mp.specifications).map(([key, val]) => (
+                        <div key={key}>
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block">{key}</span>
+                          <span className="text-xs text-white font-medium">{val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Related Products */}
+                {relatedProducts.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      More from {mp.sport.replace(/_/g, ' ')}
+                    </h4>
+                    <div className="grid grid-cols-4 gap-2">
+                      {relatedProducts.map(rp => (
                         <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => setModalSelectedVariant(v.size || '')}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition ${
-                            modalSelectedVariant === v.size
-                              ? 'bg-lime-400 text-slate-950 border-lime-400'
-                              : 'bg-slate-950 text-slate-300 border-slate-700'
-                          }`}
+                          key={rp.id}
+                          onClick={() => {
+                            setSelectedProductForModal(rp);
+                            setModalSelectedVariant(rp.variants?.[0]?.size || '');
+                            setModalQty(1);
+                          }}
+                          className="group rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-600 overflow-hidden transition text-left"
                         >
-                          {v.size} ({v.stockQty} left)
+                          <img
+                            src={rp.image}
+                            alt={rp.name}
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/images/proshop/placeholder.svg'; }}
+                            className="w-full h-16 object-cover group-hover:opacity-80 transition"
+                          />
+                          <div className="p-1.5">
+                            <p className="text-[10px] text-white font-semibold line-clamp-2 leading-tight">{rp.name}</p>
+                            <p className="text-[10px] text-lime-400 font-bold mt-0.5">{formatINR(getTierPrice(rp.price))}</p>
+                          </div>
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
 
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedProductForModal(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  addToCart(selectedProductForModal, modalSelectedVariant);
-                  setSelectedProductForModal(null);
-                }}
-                disabled={getAvailableStock(selectedProductForModal) <= 0 && !selectedProductForModal.isServiceItem}
-                className="px-5 py-2 rounded-xl bg-lime-400 hover:bg-lime-300 text-slate-950 text-xs font-heading font-extrabold shadow-md"
-              >
-                Add to Bag
-              </button>
+              {/* Footer Actions */}
+              <div className="p-5 pt-0 border-t border-slate-800 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">Qty:</span>
+                  <div className="flex items-center gap-1 bg-slate-950 rounded-lg border border-slate-700 p-0.5">
+                    <button
+                      onClick={() => setModalQty(q => Math.max(1, q - 1))}
+                      className="w-7 h-7 rounded-md text-white hover:bg-slate-800 flex items-center justify-center transition"
+                    ><Minus className="w-3 h-3" /></button>
+                    <span className="text-xs text-white font-bold w-6 text-center">{modalQty}</span>
+                    <button
+                      onClick={() => setModalQty(q => Math.min(available || 999, q + 1))}
+                      className="w-7 h-7 rounded-md text-white hover:bg-slate-800 flex items-center justify-center transition"
+                    ><Plus className="w-3 h-3" /></button>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProductForModal(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      for (let i = 0; i < modalQty; i++) {
+                        addToCart(mp, modalSelectedVariant);
+                      }
+                      setSelectedProductForModal(null);
+                    }}
+                    disabled={isOut}
+                    className={`px-5 py-2 rounded-xl text-xs font-heading font-extrabold shadow-md transition ${
+                      isOut
+                        ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                        : 'bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-lime-400/20'
+                    }`}
+                  >
+                    {isOut ? 'Out of Stock' : `Add ${modalQty > 1 ? `×${modalQty}` : ''} to Bag`}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

@@ -96,10 +96,12 @@ export const MemberShopPage: React.FC = () => {
     return products.filter((p) => {
       const matchSearch = !searchQuery || 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        p.brand.toLowerCase().includes(searchQuery.toLowerCase());
+        p.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.sport.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.category.toLowerCase().includes(searchQuery.toLowerCase());
       const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
       const matchSport = selectedSport === 'all' || p.sport === selectedSport;
-      return matchSearch && matchCat && !p.isServiceItem;
+      return matchSearch && matchCat && matchSport && !p.isServiceItem;
     });
   }, [products, searchQuery, selectedCategory, selectedSport]);
 
@@ -354,30 +356,37 @@ export const MemberShopPage: React.FC = () => {
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
-              >
-                <option value="all">All Categories</option>
-                <option value="rackets">Rackets & Bats</option>
-                <option value="strings">Strings</option>
-                <option value="grips">Grips</option>
-                <option value="balls">Balls & Shuttles</option>
-                <option value="shoes">Shoes</option>
-                <option value="apparel">Apparel</option>
-                <option value="bags">Bags</option>
-              </select>
-
-              <select
                 value={selectedSport}
                 onChange={(e) => setSelectedSport(e.target.value)}
                 className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
               >
                 <option value="all">All Sports</option>
-                <option value="tennis">Tennis</option>
-                <option value="padel">Padel</option>
+                <option value="box_cricket">Box Cricket</option>
                 <option value="badminton">Badminton</option>
-                <option value="cricket">Cricket</option>
+                <option value="table_tennis">Table Tennis</option>
+                <option value="volleyball">Volleyball</option>
+                <option value="kho_kho">Kho Kho</option>
+                <option value="hockey">Hockey</option>
+                <option value="football">Football</option>
+                <option value="kabaddi">Kabaddi</option>
+              </select>
+
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="all">All Categories</option>
+                <option value="bats">Bats</option>
+                <option value="rackets">Rackets &amp; Racquets</option>
+                <option value="balls">Balls &amp; Shuttles</option>
+                <option value="equipment">Equipment &amp; Nets</option>
+                <option value="protective">Protective Gear</option>
+                <option value="shoes">Sports Shoes</option>
+                <option value="apparel">Apparel &amp; Jerseys</option>
+                <option value="bags">Bags &amp; Kitbags</option>
+                <option value="accessories">Accessories</option>
+                <option value="strings">Strings &amp; Grips</option>
               </select>
             </div>
           </div>
@@ -395,8 +404,13 @@ export const MemberShopPage: React.FC = () => {
                   className="rounded-3xl bg-slate-900/90 border border-slate-800 p-5 flex flex-col justify-between hover:border-slate-700 transition shadow-xl group"
                 >
                   <div>
-                    <div className="relative h-44 w-full rounded-2xl overflow-hidden bg-slate-950 mb-3">
-                      <img src={p.image} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    <div className="relative h-44 w-full rounded-2xl overflow-hidden bg-slate-950 p-2 mb-3">
+                      <img
+                        src={p.image}
+                        alt={p.name}
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/images/proshop/placeholder.svg'; }}
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                      />
                       <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-slate-950/80 text-white">
                         {p.brand}
                       </span>

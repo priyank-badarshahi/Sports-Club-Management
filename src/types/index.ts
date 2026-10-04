@@ -211,7 +211,9 @@ export interface SocialSession {
 export type ProductCategory = 
   | 'rackets' 
   | 'racquets' 
+  | 'bats'
   | 'balls' 
+  | 'protective'
   | 'shoes' 
   | 'footwear' 
   | 'accessories' 
@@ -219,6 +221,7 @@ export type ProductCategory =
   | 'strings' 
   | 'bags' 
   | 'grips' 
+  | 'equipment'
   | 'services';
 
 export interface ProductVariant {
@@ -237,6 +240,7 @@ export interface Product {
   name: string;
   category: ProductCategory;
   sport: SportType | 'general';
+  compatibleSports?: (SportType | 'general')[];
   brand: string;
   price: number; // MRP
   costPrice: number;
@@ -245,8 +249,15 @@ export interface Product {
   reservedQty?: number; // Stock reserved for active/unfulfilled online orders
   reorderLevel: number;
   image: string; // Primary image
-  images?: string[]; // Array of Unsplash gallery images
+  images?: string[]; // Array of gallery images
   description: string;
+  shortDescription?: string;
+  material?: string;
+  skillLevel?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Professional' | 'All Levels';
+  intendedUse?: string;
+  specifications?: Record<string, string>;
+  warranty?: string;
+  featured?: boolean;
   variants?: ProductVariant[];
   supplierId?: string;
   supplierName?: string;

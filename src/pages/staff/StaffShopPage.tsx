@@ -339,6 +339,7 @@ export const StaffShopPage: React.FC = () => {
   // ----------------------------------------------------
   const [productSearch, setProductSearch] = useState('');
   const [productCatFilter, setProductCatFilter] = useState<string>('all');
+  const [productSportFilter, setProductSportFilter] = useState<string>('all');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Partial<Product>>({
@@ -405,7 +406,10 @@ export const StaffShopPage: React.FC = () => {
         name: productForm.name!,
         brand: productForm.brand || 'Champions Pro',
         category: (productForm.category || 'rackets') as ProductCategory,
-        sport: productForm.sport || 'tennis',
+        sport: productForm.sport || 'box_cricket',
+        featured: !!productForm.featured,
+        skillLevel: productForm.skillLevel,
+        material: productForm.material,
         price: Number(productForm.price),
         costPrice: Number(productForm.costPrice) || 0,
         gstPercent: Number(productForm.gstPercent) || 18,
@@ -1007,19 +1011,38 @@ export const StaffShopPage: React.FC = () => {
               </div>
 
               <select
+                value={productSportFilter}
+                onChange={(e) => setProductSportFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
+              >
+                <option value="all">All Sports</option>
+                <option value="box_cricket">Box Cricket</option>
+                <option value="badminton">Badminton</option>
+                <option value="table_tennis">Table Tennis</option>
+                <option value="volleyball">Volleyball</option>
+                <option value="kho_kho">Kho Kho</option>
+                <option value="hockey">Hockey</option>
+                <option value="football">Football</option>
+                <option value="kabaddi">Kabaddi</option>
+              </select>
+
+              <select
                 value={productCatFilter}
                 onChange={(e) => setProductCatFilter(e.target.value)}
                 className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none"
               >
                 <option value="all">All Categories</option>
+                <option value="bats">Bats</option>
                 <option value="rackets">Rackets</option>
-                <option value="strings">Strings</option>
-                <option value="grips">Grips</option>
-                <option value="balls">Balls & Shuttles</option>
-                <option value="shoes">Shoes</option>
+                <option value="balls">Balls &amp; Shuttles</option>
+                <option value="equipment">Equipment &amp; Nets</option>
+                <option value="protective">Protective Gear</option>
+                <option value="shoes">Shoes &amp; Boots</option>
                 <option value="apparel">Apparel</option>
                 <option value="bags">Bags</option>
                 <option value="accessories">Accessories</option>
+                <option value="strings">Strings</option>
+                <option value="grips">Grips</option>
                 <option value="services">Services</option>
               </select>
             </div>
@@ -1053,8 +1076,9 @@ export const StaffShopPage: React.FC = () => {
                   {products
                     .filter((p) => {
                       const matchS = !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.sku.toLowerCase().includes(productSearch.toLowerCase());
-                      const matchC = productCatFilter === 'all' || p.category === productCatFilter;
-                      return matchS && matchC;
+                      const matchCat = productCatFilter === 'all' || p.category === productCatFilter;
+                      const matchSport = productSportFilter === 'all' || p.sport === productSportFilter;
+                      return matchS && matchCat && matchSport;
                     })
                     .map((p) => {
                       const avail = getAvailableStock(p);
@@ -1065,7 +1089,12 @@ export const StaffShopPage: React.FC = () => {
                         <tr key={p.id} className="hover:bg-slate-800/30 transition-colors">
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
-                              <img src={p.image} alt={p.name} className="w-10 h-10 rounded-xl object-cover bg-slate-950 shrink-0" />
+                              <img
+                                src={p.image}
+                                alt={p.name}
+                                onError={(e) => { (e.target as HTMLImageElement).src = '/images/proshop/placeholder.svg'; }}
+                                className="w-10 h-10 rounded-xl object-contain p-1 bg-slate-950 shrink-0"
+                              />
                               <div>
                                 <div className="font-semibold text-white">{p.name}</div>
                                 <div className="text-[10px] text-slate-400 font-mono">{p.sku} • {p.brand}</div>
@@ -1770,14 +1799,18 @@ export const StaffShopPage: React.FC = () => {
                     onChange={(e) => setProductForm({ ...productForm, category: e.target.value as any })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
                   >
-                    <option value="rackets">Rackets & Bats</option>
+                    <option value="bats">Bats</option>
+                    <option value="rackets">Rackets</option>
+                    <option value="balls">Balls &amp; Shuttles</option>
+                    <option value="equipment">Equipment &amp; Nets</option>
+                    <option value="protective">Protective Gear</option>
+                    <option value="shoes">Shoes &amp; Boots</option>
+                    <option value="bags">Bags &amp; Kitbags</option>
+                    <option value="apparel">Apparel &amp; Jerseys</option>
+                    <option value="accessories">Accessories</option>
                     <option value="strings">Strings</option>
                     <option value="grips">Grips</option>
-                    <option value="balls">Balls & Shuttles</option>
-                    <option value="shoes">Shoes</option>
-                    <option value="apparel">Apparel</option>
-                    <option value="bags">Bags</option>
-                    <option value="accessories">Accessories</option>
+                    <option value="services">Workshop Services</option>
                   </select>
                 </div>
                 <div>
@@ -1787,11 +1820,15 @@ export const StaffShopPage: React.FC = () => {
                     onChange={(e) => setProductForm({ ...productForm, sport: e.target.value as any })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
                   >
-                    <option value="tennis">Tennis</option>
-                    <option value="padel">Padel</option>
+                    <option value="box_cricket">Box Cricket</option>
                     <option value="badminton">Badminton</option>
-                    <option value="cricket">Cricket</option>
-                    <option value="general">General Athletic</option>
+                    <option value="table_tennis">Table Tennis</option>
+                    <option value="volleyball">Volleyball</option>
+                    <option value="kho_kho">Kho Kho</option>
+                    <option value="hockey">Hockey</option>
+                    <option value="football">Football</option>
+                    <option value="kabaddi">Kabaddi</option>
+                    <option value="general">Sportswear &amp; Accessories</option>
                   </select>
                 </div>
                 <div>
@@ -1871,6 +1908,45 @@ export const StaffShopPage: React.FC = () => {
                   onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white"
                 />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-slate-400 block mb-1">Skill Level</label>
+                  <select
+                    value={productForm.skillLevel || 'All Levels'}
+                    onChange={(e) => setProductForm({ ...productForm, skillLevel: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                  >
+                    <option value="All Levels">All Levels</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                    <option value="Professional">Professional</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-slate-400 block mb-1">Material / Construction</label>
+                  <input
+                    type="text"
+                    value={productForm.material || ''}
+                    placeholder="e.g. English Willow, Carbon Fiber"
+                    onChange={(e) => setProductForm({ ...productForm, material: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs"
+                  >
+                  </input>
+                </div>
+                <div className="flex items-center pt-5">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-white">
+                    <input
+                      type="checkbox"
+                      checked={!!productForm.featured}
+                      onChange={(e) => setProductForm({ ...productForm, featured: e.target.checked })}
+                      className="accent-lime-400 rounded w-4 h-4"
+                    />
+                    <span>Featured Product</span>
+                  </label>
+                </div>
               </div>
 
               <div>
