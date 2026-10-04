@@ -403,7 +403,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   payroll: saved?.payroll || INITIAL_PAYROLL,
   notifications: saved?.notifications || INITIAL_NOTIFICATIONS,
   auditLogs: saved?.auditLogs || INITIAL_AUDIT_LOGS,
-  settings: saved?.settings || INITIAL_SETTINGS,
+  settings: (saved?.settings && saved.settings.address?.includes('Ahmedabad')) ? saved.settings : INITIAL_SETTINGS,
 
   toasts: [],
   selectedMemberId360: null,

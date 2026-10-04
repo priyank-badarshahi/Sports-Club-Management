@@ -20,51 +20,87 @@ export const HomePage: React.FC = () => {
 
   const testimonials = [
     {
-      name: 'Rohan Bopanna fan / Rahul Mehta',
-      tier: 'Gold Championship Member',
-      sport: 'Tennis & Padel',
-      comment: 'The Roland Garros red clay court is unmatched in Bangalore. As a Gold member, booking a 7 AM slot takes two taps, and having a protein bowl ready at the lounge afterward is exceptional.',
+      name: 'Hardik Patel',
+      tier: 'Gold Member',
+      sport: 'Box Cricket',
+      comment: 'The Box Cricket arena at Sports Club Gujarat is unmatched. The high-tension turf and enclosed netting make night matches under floodlights with friends and colleagues thrilling and competitive.',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80',
       rating: 5,
     },
     {
-      name: 'Isha Kothari',
-      tier: 'Silver Club Member',
-      sport: 'Padel',
-      comment: 'Padel at Champions Club has completely transformed our weekend routine! The Saturday Americano mixers are so well-organized, friendly, and competitive.',
+      name: 'Pooja Shah',
+      tier: 'Silver Member',
+      sport: 'Badminton',
+      comment: 'The synthetic badminton courts have superb shock absorption and zero glare. Booking prime morning slots takes just seconds, and the arena is always immaculately maintained.',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&h=120&q=80',
       rating: 5,
     },
     {
-      name: 'Lt. Col. Sanjeev Nair',
+      name: 'Aarav Desai',
       tier: 'Gold Member',
-      sport: 'Badminton & Cricket',
-      comment: 'The teakwood sprung floor is easy on older knees, and the automated bowling machine in the cricket net delivers ferocious 130 km/h inswingers. Superb staff and pristine facilities.',
+      sport: 'Table Tennis',
+      comment: 'Playing at the Table Tennis arena with tournament-grade tables and pro flooring has elevated my game. The Pro Shop even stocked my exact rubber and blade combination!',
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&h=120&q=80',
+      rating: 5,
+    },
+    {
+      name: 'Mehul Joshi',
+      tier: 'Club Member',
+      sport: 'Volleyball',
+      comment: 'Our weekend volleyball matches at the outdoor floodlit court are the highlight of the week. Professional net tension, clear line markings, and an energetic team atmosphere.',
+      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&h=120&q=80',
+      rating: 5,
+    },
+    {
+      name: 'Darshan Trivedi',
+      tier: 'Gold Member',
+      sport: 'Kho Kho',
+      comment: 'Finding a dedicated, properly marked Kho Kho ground with high-quality posts and night lighting in Ahmedabad was a dream come true for our team practice.',
+      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&h=120&q=80',
+      rating: 5,
+    },
+    {
+      name: 'Kinjal Vora',
+      tier: 'Silver Member',
+      sport: 'Hockey',
+      comment: 'The synthetic hockey turf provides consistent ball roll and excellent traction. Having access to genuine hockey gear and protective equipment at the club makes it complete.',
+      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=120&h=120&q=80',
       rating: 5,
     },
   ];
 
   const faqs = [
     {
-      q: 'Can non-members / walk-in guests book courts?',
-      a: 'Yes! Walk-in guests can book any available court up to 24 hours in advance at standard public rack rates. However, club members enjoy priority 7-14 day booking windows, free prime-time hours, and discounts up to 50-100% on court fees.',
+      q: 'What sports facilities are available at Sports Club Gujarat?',
+      a: 'Sports Club Gujarat offers dedicated facilities for 6 sports: Box Cricket, Table Tennis, Badminton, Volleyball, Kho Kho, and Hockey. Each facility is equipped with specialized sports surfaces, professional markings, and floodlighting for day and night play.',
     },
     {
-      q: 'What is included in the complimentary "Trial Session"?',
-      a: 'Your trial session includes a 60-minute session on your sport of choice (Tennis, Padel, Badminton, or Cricket Nets), complimentary racquet and ball rental, and a 15-minute consultation with a senior coach to evaluate your game.',
+      q: 'How does facility booking work for members and visitors?',
+      a: 'Club members enjoy priority advance booking windows, complimentary prime hours, and discounted rates. Walk-in guests and non-members can also book any available facility online or at the reception desk.',
     },
     {
-      q: 'Do you offer racquet demo loans and restringing?',
-      a: 'Absolutely. Our Pro Shop stocks the latest performance racquets from Wilson, Babolat, Yonex, and Bullpadel for members to test on-court before buying. We also offer 24-hour electronic stringing with premium poly, synthetic gut, or hybrid strings.',
+      q: 'Can I book the Box Cricket arena for group matches or corporate teams?',
+      a: 'Yes! The Box Cricket arena is available for hourly bookings, team practice sessions, and corporate friendly matches. It features high-quality synthetic turf, enclosed perimeter netting, and high-intensity LED floodlights.',
     },
     {
-      q: 'How does the Member Bar Tab work?',
-      a: 'Gold and Silver members can charge cafeteria and sports bar orders directly to their digital club tab via their member ID. Tabs can be reviewed anytime in the member portal and settled via UPI, credit card, or club wallet at the end of the day or month.',
+      q: 'Do you provide equipment for Table Tennis and Badminton?',
+      a: 'Yes. Players can either bring their personal gear or rent and purchase high-performance racquets, paddles, shuttlecocks, and balls directly from our on-site Pro Shop.',
     },
     {
-      q: 'What are the peak and non-peak court hours?',
-      a: 'Non-peak hours run on weekdays from 10:00 AM to 4:00 PM. Peak hours are morning 06:00 AM to 10:00 AM and evening 04:00 PM to 11:00 PM, as well as all day on weekends and public holidays.',
+      q: 'Are facilities available for team sports like Volleyball, Kho Kho, and Hockey?',
+      a: 'Absolutely. We offer full-size, dedicated grounds for Volleyball, Kho Kho, and Hockey suitable for full-squad training, competitive league matches, and friendly scrimmages.',
+    },
+    {
+      q: 'Is Sports Club Gujarat open to beginners and recreational players?',
+      a: 'Yes, players of all skill levels are warmly welcome. Whether you are picking up a racquet for the first time, enjoying casual box cricket with friends, or training competitively, our club provides a supportive and friendly environment.',
+    },
+    {
+      q: 'What equipment and services are available at the Pro Shop?',
+      a: 'Our on-site Pro Shop provides sport-specific equipment, footwear, apparel, and accessories for Box Cricket, Table Tennis, Badminton, Volleyball, Kho Kho, and Hockey. Our staff is ready to help you select the ideal gear for your game.',
+    },
+    {
+      q: 'Where is Sports Club Gujarat located in Ahmedabad?',
+      a: 'We are conveniently located at SP Stadium Area, Ahmedabad, Gujarat, India. The complex features ample secure parking, locker facilities, and convenient road connectivity across the city.',
     },
   ];
 
@@ -80,39 +116,39 @@ export const HomePage: React.FC = () => {
             {/* Pill Announcement */}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/90 border border-lime-400/30 text-lime-400 text-xs font-semibold shadow-lg shadow-lime-400/10 animate-pulse">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Bangalore's Premier Racquet & Sports Club • Roland Garros Clay & WPT Padel</span>
+              <span>SPORTS CLUB GUJARAT • AHMEDABAD</span>
             </div>
 
             {/* Main Headline */}
             <h1 className="font-heading font-extrabold text-4xl sm:text-6xl lg:text-7xl tracking-tight text-white leading-[1.1]">
               Elevate Your Game at <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-lime-400 via-emerald-300 to-amber-300">
-                Champions Club
+                Sports Club Gujarat
               </span>
             </h1>
 
             {/* Sub-headline */}
             <p className="text-base sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              World-class Red Clay Tennis, Panoramic Padel, BWF Grade-1 Badminton, and Automated Cricket Nets. Complete with a pro shop, sports bar, and executive locker lounge.
+              Experience a complete sports destination in Ahmedabad with dedicated facilities for Box Cricket, Table Tennis, Badminton, Volleyball, Kho Kho, and Hockey. Train, compete, play with friends, and shop for sport-specific equipment at our Pro Shop.
             </p>
 
             {/* Live Stats Badges */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-8 max-w-3xl mx-auto">
               <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80 backdrop-blur-md">
-                <div className="font-heading font-extrabold text-2xl text-lime-400">8+</div>
-                <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Championship Courts</div>
+                <div className="font-heading font-extrabold text-2xl text-lime-400">6</div>
+                <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Sports</div>
               </div>
               <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80 backdrop-blur-md">
-                <div className="font-heading font-extrabold text-2xl text-amber-400">4</div>
-                <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Racquet & Bat Sports</div>
+                <div className="font-heading font-extrabold text-2xl text-amber-400">Multi-Sport</div>
+                <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Facilities</div>
               </div>
               <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80 backdrop-blur-md">
-                <div className="font-heading font-extrabold text-2xl text-sky-400">500+</div>
-                <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Active Club Members</div>
+                <div className="font-heading font-extrabold text-2xl text-sky-400">Pro Shop</div>
+                <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Sport-Specific Gear</div>
               </div>
               <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80 backdrop-blur-md">
-                <div className="font-heading font-extrabold text-2xl text-emerald-400">11 PM</div>
-                <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">Late Night Floodlit</div>
+                <div className="font-heading font-extrabold text-2xl text-emerald-400">Daily Open</div>
+                <div className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">6 AM – 11 PM</div>
               </div>
             </div>
           </div>
@@ -130,7 +166,7 @@ export const HomePage: React.FC = () => {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {testimonials.map((t, idx) => (
             <div
               key={idx}
@@ -210,13 +246,13 @@ export const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             <div className="space-y-4">
               <span className="text-xs font-bold uppercase tracking-wider text-lime-400">
-                Visit Champions Club
+                Visit Sports Club Gujarat
               </span>
               <h2 className="font-heading font-extrabold text-3xl sm:text-4xl text-white">
                 Ready to Experience the Club in Person?
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                We are conveniently situated along the Outer Ring Road with ample valet parking, dedicated gear storage, and private lounge access.
+                We are conveniently situated in the SP Stadium Area of Ahmedabad with ample parking, dedicated gear storage, and private lounge access.
               </p>
               <div className="space-y-2 pt-2 text-xs text-slate-300">
                 <div className="flex items-center gap-2">
@@ -240,7 +276,7 @@ export const HomePage: React.FC = () => {
               <div className="absolute inset-0 opacity-40 bg-[radial-gradient(#a3e635_1px,transparent_1px)] [background-size:16px_16px]" />
               <div className="relative z-10 flex justify-between items-start">
                 <span className="px-3 py-1 rounded-lg bg-slate-900/90 text-[11px] font-mono text-lime-400 border border-slate-800">
-                  GPS: 12.9352° N, 77.6945° E
+                  GPS: 23.0416° N, 72.5627° E
                 </span>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold border border-emerald-500/30">
                   Open Now
@@ -249,10 +285,10 @@ export const HomePage: React.FC = () => {
               <div className="relative z-10 bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-slate-800">
                 <div className="flex items-center gap-2 text-white font-heading font-bold text-sm">
                   <MapPin className="w-4 h-4 text-lime-400" />
-                  <span>Champions Club Sports Complex</span>
+                  <span>Sports Club Gujarat</span>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Outer Ring Road, Bengaluru • Valet parking & EV charging stations available.
+                  SP Stadium Area, Ahmedabad, Gujarat, India • Ample parking & modern sports amenities available.
                 </p>
                 <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-lime-400 text-slate-950 text-xs font-bold">
                   <span>Open in Google Maps</span>

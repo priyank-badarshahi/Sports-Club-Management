@@ -1986,8 +1986,8 @@ export const StaffShopPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
           <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl p-6 space-y-4 shadow-2xl font-mono text-xs">
             <div className="text-center space-y-1 pb-3 border-b border-dashed border-slate-300">
-              <h2 className="font-heading font-extrabold text-lg text-slate-900">CHAMPIONS CLUB PRO SHOP</h2>
-              <p className="text-[10px] text-slate-500">Outer Ring Road, Bengaluru • GSTIN: 29AABCU9603R1ZM</p>
+              <h2 className="font-heading font-extrabold text-lg text-slate-900">SPORTS CLUB GUJARAT PRO SHOP</h2>
+              <p className="text-[10px] text-slate-500">SP Stadium Area, Ahmedabad, Gujarat • GSTIN: 24AABCU9603R1ZM</p>
               <p className="text-[10px] text-slate-500 font-bold">TAX INVOICE / POS RECEIPT</p>
             </div>
 

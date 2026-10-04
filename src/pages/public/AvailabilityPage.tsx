@@ -28,13 +28,11 @@ import { generateTimeSlots, calculateEndTime, isPeakHour } from '../../lib/booki
 const SPORT_FILTER_OPTIONS: { id: SportType | 'all'; label: string }[] = [
   { id: 'all', label: 'All Arenas' },
   { id: 'box_cricket', label: 'Box Cricket' },
-  { id: 'badminton', label: 'Badminton' },
   { id: 'table_tennis', label: 'Table Tennis' },
+  { id: 'badminton', label: 'Badminton' },
   { id: 'volleyball', label: 'Volleyball' },
   { id: 'kho_kho', label: 'Kho Kho' },
   { id: 'hockey', label: 'Hockey' },
-  { id: 'football', label: 'Football' },
-  { id: 'kabaddi', label: 'Kabaddi' },
 ];
 
 export const AvailabilityPage: React.FC = () => {

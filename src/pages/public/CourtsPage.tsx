@@ -121,13 +121,11 @@ export const CourtsPage: React.FC = () => {
           {[
             { id: 'all', label: 'All Facilities' },
             { id: 'box_cricket', label: 'Box Cricket' },
-            { id: 'badminton', label: 'Badminton' },
             { id: 'table_tennis', label: 'Table Tennis' },
+            { id: 'badminton', label: 'Badminton' },
             { id: 'volleyball', label: 'Volleyball' },
             { id: 'kho_kho', label: 'Kho Kho' },
             { id: 'hockey', label: 'Hockey' },
-            { id: 'football', label: 'Football' },
-            { id: 'kabaddi', label: 'Kabaddi' },
           ].map((tab) => (
             <button
               key={tab.id}

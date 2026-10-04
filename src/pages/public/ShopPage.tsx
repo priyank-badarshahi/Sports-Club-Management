@@ -31,13 +31,11 @@ import { getMemberShopDiscountPercent, getAvailableStock } from '../../lib/inven
 export const SPORT_FILTER_TABS = [
   { id: 'all', label: 'All Products', icon: '🏆' },
   { id: 'box_cricket', label: 'Box Cricket', icon: '🏏' },
-  { id: 'badminton', label: 'Badminton', icon: '🏸' },
   { id: 'table_tennis', label: 'Table Tennis', icon: '🏓' },
+  { id: 'badminton', label: 'Badminton', icon: '🏸' },
   { id: 'volleyball', label: 'Volleyball', icon: '🏐' },
   { id: 'kho_kho', label: 'Kho Kho', icon: '🏃' },
   { id: 'hockey', label: 'Hockey', icon: '🏑' },
-  { id: 'football', label: 'Football', icon: '⚽' },
-  { id: 'kabaddi', label: 'Kabaddi', icon: '🤼' },
 ];
 
 export const ShopPage: React.FC = () => {

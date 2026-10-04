@@ -17,11 +17,11 @@ export const Footer: React.FC = () => {
                 <Trophy className="w-5 h-5 stroke-[2.5]" />
               </div>
               <span className="font-heading font-extrabold text-xl tracking-tight text-white">
-                CHAMPIONS <span className="text-lime-400">CLUB</span>
+                SPORTS CLUB <span className="text-lime-400">GUJARAT</span>
               </span>
             </div>
             <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
-              India's premier athletic haven featuring tournament-standard Red Clay & DecoTurf Tennis, Panoramic WPT Padel, BWF Grade-1 Badminton, and high-speed bowling machine Cricket Nets.
+              Sports Club Gujarat is a multi-sport destination in Ahmedabad offering dedicated facilities for Box Cricket, Table Tennis, Badminton, Volleyball, Kho Kho, and Hockey, along with training, recreation, bookings, and a sport-specific Pro Shop.
             </p>
             <div className="flex items-center gap-3 pt-2">
               <a href="#social" className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-lime-400 hover:border-lime-400/40 transition">
@@ -42,12 +42,14 @@ export const Footer: React.FC = () => {
               Sports & Courts
             </h4>
             <ul className="space-y-2 text-xs">
-              <li><Link to="/courts" className="hover:text-lime-400 transition">Tennis (Clay & DecoTurf)</Link></li>
-              <li><Link to="/courts" className="hover:text-lime-400 transition">Panoramic Glass Padel</Link></li>
-              <li><Link to="/courts" className="hover:text-lime-400 transition">BWF Olympic Badminton</Link></li>
-              <li><Link to="/courts" className="hover:text-lime-400 transition">Automated Cricket Nets</Link></li>
-              <li><Link to="/availability" className="hover:text-lime-400 transition">Live Court Matrix</Link></li>
-              <li><Link to="/book-trial" className="hover:text-lime-400 transition">Book a Trial Session</Link></li>
+              <li><Link to="/courts" className="hover:text-lime-400 transition">Box Cricket</Link></li>
+              <li><Link to="/courts" className="hover:text-lime-400 transition">Table Tennis</Link></li>
+              <li><Link to="/courts" className="hover:text-lime-400 transition">Badminton</Link></li>
+              <li><Link to="/courts" className="hover:text-lime-400 transition">Volleyball</Link></li>
+              <li><Link to="/courts" className="hover:text-lime-400 transition">Kho Kho</Link></li>
+              <li><Link to="/courts" className="hover:text-lime-400 transition">Hockey</Link></li>
+              <li><Link to="/availability" className="hover:text-lime-400 transition">Facility Availability</Link></li>
+              <li><Link to="/courts" className="hover:text-lime-400 transition">Sports Booking</Link></li>
             </ul>
           </div>
 
@@ -86,9 +88,10 @@ export const Footer: React.FC = () => {
               <li className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-lime-400 shrink-0" />
                 <span>ghmilan66@gmail.com</span>
-              </li><li className="flex items-start gap-2">
+              </li>
+              <li className="flex items-start gap-2">
                 <MapPin className="w-3.5 h-3.5 text-lime-400 shrink-0 mt-0.5" />
-                <span className="line-clamp-2">Sports Club of Gujarat</span>
+                <span className="line-clamp-2">Sports Club Gujarat, SP Stadium Area, Ahmedabad, Gujarat, India</span>
               </li>
             </ul>
           </div>
