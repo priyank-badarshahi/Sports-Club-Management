@@ -318,11 +318,11 @@ app.post('/api/auth/login', async (req: Request, res: Response): Promise<void> =
 
       // If the user provided a Member ID (e.g. M001), look up their email in the 'members' table
       if (cleanIdentifier.startsWith('m') && !cleanIdentifier.includes('@')) {
-        const { data: memberByCode } = await supabase
+        const { data: memberByCode } = (await supabase
           .from('members')
           .select('email')
           .ilike('member_id', cleanIdentifier)
-          .maybeSingle();
+          .maybeSingle()) as { data: { email?: string } | null; error: any };
 
         if (memberByCode?.email) {
           targetEmail = memberByCode.email;

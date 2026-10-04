@@ -37,7 +37,7 @@ if (!isSupabaseConfigured) {
 }
 
 // Admin client for backend database operations and user provisioning (bypasses RLS)
-export const supabase = createClient(
+export const supabase = createClient<any>(
   supabaseUrl || 'https://placeholder.supabase.co',
   serviceKey || 'placeholder-key',
   {
@@ -49,7 +49,7 @@ export const supabase = createClient(
 );
 
 // Fresh isolated client for authenticating user credentials without polluting server session
-export const createAuthClient = () => createClient(
+export const createAuthClient = () => createClient<any>(
   supabaseUrl || 'https://placeholder.supabase.co',
   anonKey || serviceKey || 'placeholder-key',
   {
