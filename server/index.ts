@@ -867,6 +867,107 @@ app.get('/api/members', async (req: Request, res: Response) => {
   }
 });
 
+function formatBookingForClient(row: any) {
+  let courtId = 'court-1';
+  if (row.courtId && typeof row.courtId === 'string' && row.courtId.startsWith('court-')) {
+    courtId = row.courtId;
+  } else if (row.court_id && typeof row.court_id === 'string' && row.court_id.startsWith('court-')) {
+    courtId = row.court_id;
+  } else if (row.court_name) {
+    const numMatch = String(row.court_name).match(/Arena\s*#(\d+)/i) || String(row.court_name).match(/Court\s*#?(\d+)/i);
+    if (numMatch) {
+      const cNum = parseInt(numMatch[1], 10);
+      courtId = `court-${((cNum - 1) % 6) + 1}`;
+    }
+  } else if (row.court_id) {
+    courtId = row.court_id;
+  }
+
+  const sportRaw = String(row.sport || '').toLowerCase();
+  let sport = 'badminton';
+  if (sportRaw.includes('cricket') || sportRaw.includes('tennis')) {
+    sport = 'box_cricket';
+  } else if (sportRaw.includes('padel') || sportRaw.includes('volleyball')) {
+    sport = 'volleyball';
+  } else if (sportRaw.includes('table') || sportRaw.includes('pickleball')) {
+    sport = 'table_tennis';
+  } else if (sportRaw.includes('kho')) {
+    sport = 'kho_kho';
+  } else if (sportRaw.includes('hockey')) {
+    sport = 'hockey';
+  } else if (sportRaw.includes('badminton')) {
+    sport = 'badminton';
+  }
+
+  let startTime = row.start_time || row.startTime || '07:00';
+  if (typeof startTime === 'string' && startTime.length > 5) startTime = startTime.slice(0, 5);
+  let endTime = row.end_time || row.endTime || '08:00';
+  if (typeof endTime === 'string' && endTime.length > 5) endTime = endTime.slice(0, 5);
+
+  const tierRaw = String(row.membership_tier || row.tier || 'silver').toLowerCase();
+  const tier =
+    tierRaw === 'gold' ? 'gold' :
+    tierRaw === 'junior' ? 'junior' :
+    tierRaw === 'walk_in' ? 'walk_in' : 'silver';
+
+  const code = row.booking_code || (row.id && String(row.id).startsWith('BKG-') ? row.id : `BKG-SCG-${row.id ? String(row.id).slice(0, 8) : Math.floor(10000 + Math.random() * 90000)}`);
+  const id = code;
+
+  const isPaid = row.payment_status === 'paid' || row.isPaid === true;
+  const pmRaw = String(row.payment_method || row.paymentMethod || 'card').toLowerCase();
+  const paymentMethod = ['wallet', 'upi', 'card', 'cash', 'tab', 'plan_included', 'pay_at_desk'].includes(pmRaw) ? pmRaw : 'card';
+
+  const statusRaw = String(row.status || 'confirmed').toLowerCase();
+  const status = ['confirmed', 'cancelled', 'completed', 'checked_in', 'no_show'].includes(statusRaw) ? statusRaw : 'confirmed';
+
+  return {
+    id,
+    courtId,
+    memberId: row.member_id || row.memberId || undefined,
+    guestName: row.customer_name || row.guestName || 'Member',
+    guestPhone: row.customer_phone || row.guestPhone || '',
+    guestEmail: row.customer_email || row.guestEmail || '',
+    tier,
+    date: row.booking_date || row.date || new Date().toISOString().split('T')[0],
+    startTime,
+    endTime,
+    sport,
+    bookingType: row.is_social_play ? 'social_play' : (row.bookingType || 'regular'),
+    channel: row.channel || 'online',
+    totalPrice: Number(row.amount ?? row.totalPrice ?? 0),
+    discountApplied: Number(row.discount_applied ?? row.discountApplied ?? 0),
+    status,
+    isPaid,
+    paymentMethod,
+    qrCodeData: `SCG-PASS-${id}`,
+    notes: row.notes || (row.court_name ? `Court: ${row.court_name}` : `Booking ${id}`),
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+  };
+}
+
+// Fetch all bookings from Supabase database
+app.get('/api/bookings', async (req: Request, res: Response) => {
+  try {
+    if (isSupabaseConfigured) {
+      const { data: bData, error: bErr } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('booking_date', { ascending: false });
+
+      if (bErr) throw bErr;
+
+      const formattedBookings = (bData || []).map(formatBookingForClient);
+      res.json({ success: true, bookings: formattedBookings, count: formattedBookings.length });
+      return;
+    }
+
+    res.json({ success: true, bookings: [], notice: 'Supabase not configured' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 // Create/Insert a member directly into Supabase members table (used by admin registration modal)
 app.post('/api/members', async (req: Request, res: Response): Promise<void> => {
   try {

@@ -57,12 +57,17 @@ export const MemberBookPage: React.FC = () => {
     bookings, 
     socialSessions, 
     plans,
-    settings, 
+    settings,
     addBooking, 
     cancelBooking,
     rescheduleBooking,
-    addRecurringBookings 
+    addRecurringBookings,
+    pullFromSupabase
   } = useAppStore();
+
+  useEffect(() => {
+    pullFromSupabase();
+  }, [pullFromSupabase]);
 
   const currentMember =
     members.find((m) => Boolean(currentUser.memberId && m.id === currentUser.memberId)) ||
@@ -215,14 +220,20 @@ export const MemberBookPage: React.FC = () => {
         return false;
       }
       const matchesMemberId = Boolean(currentUser.memberId && b.memberId && b.memberId === currentUser.memberId);
-      const matchesCurrentMemberId = Boolean(currentMember?.id && b.memberId && b.memberId === currentMember.id);
+      const matchesCurrentMemberId = Boolean(currentMember?.id && b.memberId && (b.memberId === currentMember.id || b.memberId === currentMember.memberNumber));
       const matchesEmail = Boolean(currentUser.email && b.guestEmail && b.guestEmail.toLowerCase() === currentUser.email.toLowerCase());
       const matchesPhone = Boolean(
         (currentUser.phone || currentMember?.phone) &&
         b.guestPhone &&
         (b.guestPhone === currentUser.phone || b.guestPhone === currentMember?.phone)
       );
-      return matchesMemberId || matchesCurrentMemberId || matchesEmail || matchesPhone;
+      const matchesName = Boolean(
+        (currentUser.name || currentMember?.fullName) &&
+        b.guestName &&
+        (b.guestName.toLowerCase() === (currentUser.name || '').toLowerCase() ||
+         b.guestName.toLowerCase() === (currentMember?.fullName || '').toLowerCase())
+      );
+      return matchesMemberId || matchesCurrentMemberId || matchesEmail || matchesPhone || matchesName;
     });
   }, [bookings, currentUser, currentMember]);
 

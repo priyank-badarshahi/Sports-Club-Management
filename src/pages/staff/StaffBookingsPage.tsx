@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppStore } from '../../store';
 import { Booking, Court, SportType, MembershipTier, BookingType, BookingChannel } from '../../types';
 import { 
@@ -62,8 +62,13 @@ export const StaffBookingsPage: React.FC = () => {
     createCourtBlock,
     joinSocialSession,
     leaveSocialSession,
-    currentUser 
+    currentUser,
+    pullFromSupabase
   } = useAppStore();
+
+  useEffect(() => {
+    pullFromSupabase();
+  }, [pullFromSupabase]);
 
   // Navigation state
   const [activeTab, setActiveTab] = useState<TabView>('timeline');
@@ -318,7 +323,9 @@ export const StaffBookingsPage: React.FC = () => {
       if (b.courtId !== courtId) return false;
       if (b.date !== date) return false;
       if (b.status === 'cancelled') return false;
-      return b.startTime <= time && b.endTime > time;
+      const bStart = (b.startTime || '').slice(0, 5);
+      const bEnd = (b.endTime || '').slice(0, 5);
+      return bStart <= time && bEnd > time;
     });
   };
 
@@ -327,7 +334,9 @@ export const StaffBookingsPage: React.FC = () => {
     return socialSessions.find((s) => {
       if (!s.courtIds.includes(courtId)) return false;
       if (s.date !== date) return false;
-      return s.startTime <= time && s.endTime > time;
+      const sStart = (s.startTime || '').slice(0, 5);
+      const sEnd = (s.endTime || '').slice(0, 5);
+      return sStart <= time && sEnd > time;
     });
   };
 
@@ -356,9 +365,9 @@ export const StaffBookingsPage: React.FC = () => {
     return bookings.filter((b) => {
       if (listSearch) {
         const query = listSearch.toLowerCase();
-        const matchName = b.guestName.toLowerCase().includes(query);
-        const matchId = b.id.toLowerCase().includes(query);
-        const matchPhone = b.guestPhone.includes(query);
+        const matchName = (b.guestName || '').toLowerCase().includes(query);
+        const matchId = (b.id || '').toLowerCase().includes(query);
+        const matchPhone = (b.guestPhone || '').includes(query);
         if (!matchName && !matchId && !matchPhone) return false;
       }
       if (sportFilter !== 'all' && b.sport !== sportFilter) return false;
@@ -658,7 +667,7 @@ export const StaffBookingsPage: React.FC = () => {
 
                             // Check if this time slot is the START of the booking (to render the block properly)
                             if (booking) {
-                              const isStartSlot = booking.startTime === time;
+                              const isStartSlot = (booking.startTime?.slice(0, 5) || booking.startTime) === time;
                               if (!isStartSlot) {
                                 // Already rendered by start slot, render placeholder cell
                                 return (
@@ -1379,14 +1388,14 @@ export const StaffBookingsPage: React.FC = () => {
                           {b.id}
                         </td>
                         <td className="py-3 px-4">
-                          <div className="font-semibold text-white">{b.guestName}</div>
+                          <div className="font-semibold text-white">{b.guestName || 'Member'}</div>
                           <div className="text-[10px] text-slate-400">{b.guestPhone}</div>
                           <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase mt-1 inline-block ${getTierBadgeClass(b.tier)}`}>
                             {b.tier}
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <div className="font-medium text-white">{b.courtId.replace(/court_/g, '').toUpperCase()}</div>
+                          <div className="font-medium text-white">{(b.courtId || 'court-1').replace(/court_/g, '').toUpperCase()}</div>
                           <div className="text-[10px] text-lime-400 capitalize">{b.sport}</div>
                         </td>
                         <td className="py-3 px-4">
@@ -1409,7 +1418,7 @@ export const StaffBookingsPage: React.FC = () => {
                               ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                               : 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                           }`}>
-                            {b.status.replace('_', ' ')}
+                            {(b.status || 'confirmed').replace('_', ' ')}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right space-x-2">

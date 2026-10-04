@@ -376,7 +376,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   members: saved?.members || INITIAL_MEMBERS,
   courts: (saved?.courts && saved.courts.length === INITIAL_COURTS.length && saved.courts.some((c: any) => c.sport === 'box_cricket' && c.id === 'court-1')) ? saved.courts : INITIAL_COURTS,
   plans: saved?.plans || INITIAL_PLANS,
-  bookings: (saved?.bookings && !saved.bookings.some((b: any) => b.sport === 'tennis' || b.sport === 'padel')) ? saved.bookings : INITIAL_BOOKINGS,
+  bookings: (saved?.bookings && saved.bookings.length > 0) ? saved.bookings : INITIAL_BOOKINGS,
   socialSessions: saved?.socialSessions || INITIAL_SOCIAL_SESSIONS,
   products: (saved?.products && saved.products.length === INITIAL_PRODUCTS.length && saved.products.some((p: any) => p.id === 'prod_kbd_12')) ? saved.products : INITIAL_PRODUCTS,
   suppliers: saved?.suppliers || INITIAL_SUPPLIERS,

@@ -1,10 +1,152 @@
 import { createClient } from '@supabase/supabase-js';
-import { Member, Booking, Product, Order, Tab, Invoice, Payment, AuditLog } from '../types';
+import { Member, Booking, Product, Order, Tab, Invoice, Payment, AuditLog, SportType, MembershipTier, BookingStatus } from '../types';
 
 const SUPABASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || 'https://gddhfywnqrltmnlmtyak.supabase.co';
 const SUPABASE_ANON_KEY = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || 'sb_publishable_UFblFtW6JURAXiqHdNUIOA_9a1Xswm6';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/**
+ * Maps Supabase PostgreSQL booking row to TypeScript Booking model.
+ */
+export function formatBookingForClient(row: any): Booking {
+  // 1. Determine courtId matching frontend courts ('court-1' to 'court-6')
+  let courtId = 'court-1';
+  if (row.courtId && typeof row.courtId === 'string' && row.courtId.startsWith('court-')) {
+    courtId = row.courtId;
+  } else if (row.court_id && typeof row.court_id === 'string' && row.court_id.startsWith('court-')) {
+    courtId = row.court_id;
+  } else if (row.court_name) {
+    const numMatch = String(row.court_name).match(/Arena\s*#(\d+)/i) || String(row.court_name).match(/Court\s*#?(\d+)/i);
+    if (numMatch) {
+      const cNum = parseInt(numMatch[1], 10);
+      courtId = `court-${((cNum - 1) % 6) + 1}`;
+    }
+  } else if (row.court_id) {
+    courtId = row.court_id;
+  }
+
+  // 2. Sport mapping to the 6 club sports
+  const sportRaw = String(row.sport || '').toLowerCase();
+  let sport: SportType = 'badminton';
+  if (sportRaw.includes('cricket') || sportRaw.includes('tennis')) {
+    sport = 'box_cricket';
+  } else if (sportRaw.includes('padel') || sportRaw.includes('volleyball')) {
+    sport = 'volleyball';
+  } else if (sportRaw.includes('table') || sportRaw.includes('pickleball')) {
+    sport = 'table_tennis';
+  } else if (sportRaw.includes('kho')) {
+    sport = 'kho_kho';
+  } else if (sportRaw.includes('hockey')) {
+    sport = 'hockey';
+  } else if (sportRaw.includes('badminton')) {
+    sport = 'badminton';
+  }
+
+  // 3. Time formatting (ensure HH:mm)
+  let startTime = row.start_time || row.startTime || '07:00';
+  if (typeof startTime === 'string' && startTime.length > 5) startTime = startTime.slice(0, 5);
+  let endTime = row.end_time || row.endTime || '08:00';
+  if (typeof endTime === 'string' && endTime.length > 5) endTime = endTime.slice(0, 5);
+
+  // 4. Membership Tier
+  const tierRaw = String(row.membership_tier || row.tier || 'silver').toLowerCase();
+  const tier: MembershipTier =
+    tierRaw === 'gold' ? 'gold' :
+    tierRaw === 'junior' ? 'junior' :
+    tierRaw === 'walk_in' ? 'walk_in' : 'silver';
+
+  // 5. Booking code & id
+  const code = row.booking_code || (row.id && String(row.id).startsWith('BKG-') ? row.id : `BKG-SCG-${row.id ? String(row.id).slice(0, 8) : Math.floor(10000 + Math.random() * 90000)}`);
+  const id = code;
+
+  // 6. Payment status & method
+  const isPaid = row.payment_status === 'paid' || row.isPaid === true;
+  const pmRaw = String(row.payment_method || row.paymentMethod || 'card').toLowerCase();
+  const paymentMethod = (['wallet', 'upi', 'card', 'cash', 'tab', 'plan_included', 'pay_at_desk'].includes(pmRaw) ? pmRaw : 'card') as any;
+
+  // 7. Status
+  const statusRaw = String(row.status || 'confirmed').toLowerCase();
+  const status: BookingStatus = (['confirmed', 'cancelled', 'completed', 'checked_in', 'no_show'].includes(statusRaw) ? statusRaw : 'confirmed') as any;
+
+  return {
+    id,
+    courtId,
+    memberId: row.member_id || row.memberId || undefined,
+    guestName: row.customer_name || row.guestName || 'Member',
+    guestPhone: row.customer_phone || row.guestPhone || '',
+    guestEmail: row.customer_email || row.guestEmail || '',
+    tier,
+    date: row.booking_date || row.date || new Date().toISOString().split('T')[0],
+    startTime,
+    endTime,
+    sport,
+    bookingType: row.is_social_play ? 'social_play' : (row.bookingType || 'regular'),
+    channel: row.channel || 'online',
+    totalPrice: Number(row.amount ?? row.totalPrice ?? 0),
+    discountApplied: Number(row.discount_applied ?? row.discountApplied ?? 0),
+    status,
+    isPaid,
+    paymentMethod,
+    qrCodeData: `SCG-PASS-${id}`,
+    notes: row.notes || (row.court_name ? `Court: ${row.court_name}` : `Booking ${id}`),
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+  };
+}
+
+/**
+ * Maps frontend Booking model to Supabase PostgreSQL database columns.
+ */
+export function formatBookingForDatabase(b: any) {
+  let dbSport = 'Badminton';
+  const sportLower = String(b.sport || '').toLowerCase();
+  if (sportLower.includes('cricket') || sportLower.includes('tennis')) dbSport = 'Tennis';
+  else if (sportLower.includes('volleyball') || sportLower.includes('padel') || sportLower.includes('kho')) dbSport = 'Padel';
+  else if (sportLower.includes('table') || sportLower.includes('hockey')) dbSport = 'Pickleball';
+  else if (sportLower.includes('badminton')) dbSport = 'Badminton';
+
+  let courtName = 'Sports Club Gujarat Arena #1 - Tennis Zone';
+  if (b.courtId) {
+    const num = parseInt(String(b.courtId).replace(/\D/g, '') || '1', 10);
+    courtName = `Sports Club Gujarat Arena #${num} - ${dbSport} Zone`;
+  }
+
+  const startTime = b.startTime ? (b.startTime.length === 5 ? b.startTime + ':00' : b.startTime) : '07:00:00';
+  const endTime = b.endTime ? (b.endTime.length === 5 ? b.endTime + ':00' : b.endTime) : '08:00:00';
+
+  const tier = b.tier ? (b.tier.charAt(0).toUpperCase() + b.tier.slice(1).toLowerCase()) : 'Silver';
+  const paymentMethod = b.paymentMethod ? (b.paymentMethod.charAt(0).toUpperCase() + b.paymentMethod.slice(1).toLowerCase()) : 'Card';
+  const bookingCode = b.id && String(b.id).startsWith('BKG-') ? b.id : `BKG-SCG-${Math.floor(10000 + Math.random() * 90000)}`;
+
+  const item: any = {
+    booking_code: bookingCode,
+    court_name: courtName,
+    sport: dbSport,
+    booking_date: b.date || new Date().toISOString().split('T')[0],
+    start_time: startTime,
+    end_time: endTime,
+    member_id: b.memberId || 'M001',
+    customer_name: b.guestName || 'Member',
+    customer_phone: b.guestPhone || '',
+    customer_email: b.guestEmail || '',
+    membership_tier: tier,
+    amount: Number(b.totalPrice || 0),
+    discount_applied: Number(b.discountApplied || 0),
+    status: b.status || 'confirmed',
+    payment_status: b.isPaid ? 'paid' : 'pending',
+    payment_method: paymentMethod,
+    is_social_play: b.bookingType === 'social_play',
+  };
+
+  if (b.court_id && b.court_id.length === 36) {
+    item.court_id = b.court_id;
+  }
+  if (b.dbId) {
+    item.id = b.dbId;
+  }
+
+  return item;
+}
 
 /**
  * Robust Supabase persistence helpers.
@@ -18,16 +160,16 @@ const TABLE_COLUMNS: Record<string, string[]> = {
     'discount_rate', 'total_bookings', 'total_spent', 'emergency_contact'
   ],
   bookings: [
-    'id', 'courtId', 'memberId', 'guestName', 'guestPhone', 'guestEmail', 'tier', 
-    'date', 'startTime', 'endTime', 'sport', 'bookingType', 'channel', 'totalPrice', 
-    'discountApplied', 'priceBreakdown', 'status', 'isPaid', 'paymentMethod', 'notes', 
-    'createdAt', 'cancelledAt', 'cancellationReason', 'lateCancelFee', 'refundAmount', 
-    'qrCodeData', 'isRecurring', 'recurringGroupId'
+    'id', 'booking_code', 'court_id', 'court_name', 'sport', 'booking_date', 
+    'start_time', 'end_time', 'member_id', 'customer_name', 'customer_phone', 
+    'customer_email', 'membership_tier', 'amount', 'discount_applied', 
+    'status', 'payment_status', 'payment_method', 'is_social_play', 
+    'social_slots_available', 'social_slots_total', 'registered_players'
   ],
   products: [
     'id', 'name', 'sku', 'brand', 'category', 'price', 'costPrice', 'stockQty', 
     'reservedQty', 'reorderLevel', 'isServiceItem', 'image', 'serviceOptions', 
-    'sizeVariants', 'stringTensionRange'
+    'sizeVariants', 'stringTensionRange', 'stock', 'min_stock', 'member_price', 'description'
   ],
   orders: [
     'id', 'orderNumber', 'memberId', 'customerName', 'items', 'totalAmount', 
@@ -160,6 +302,11 @@ export const supabaseService = {
           if (r.dbId) item.id = r.dbId;
         }
 
+        // Special mapping for bookings table to match Supabase database schema
+        if (tableName === 'bookings') {
+          item = formatBookingForDatabase(r);
+        }
+
         // Remove columns not in whitelist for this table to prevent 42703 (column does not exist) errors
         const allowedColumns = TABLE_COLUMNS[tableName];
         if (allowedColumns) {
@@ -179,7 +326,8 @@ export const supabaseService = {
         return item;
       });
 
-      const { error } = await supabase.from(tableName).upsert(cleanRecords, { onConflict: tableName === 'members' ? 'member_id' : 'id' });
+      const conflictCol = tableName === 'members' ? 'member_id' : tableName === 'bookings' ? 'booking_code' : 'id';
+      const { error } = await supabase.from(tableName).upsert(cleanRecords, { onConflict: conflictCol });
       if (error) {
         console.warn(`Supabase upsert failed on table "${tableName}":`, error.message);
         return false;
@@ -211,13 +359,33 @@ export const supabaseService = {
         }
       }
 
-      const { data, error } = await supabase.from(tableName).select('*');
+      // For bookings, first try our Express backend endpoint which provides mapped data
+      if (tableName === 'bookings') {
+        try {
+          const res = await fetch('/api/bookings');
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && Array.isArray(json.bookings) && json.bookings.length > 0) {
+              return json.bookings as T[];
+            }
+          }
+        } catch {
+          // If backend fetch fails, proceed with Supabase client query
+        }
+      }
+
+      let query = supabase.from(tableName).select('*');
+      if (tableName === 'bookings') {
+        query = query.order('booking_date', { ascending: false });
+      }
+
+      const { data, error } = await query;
       if (error) {
         console.warn(`Supabase fetch failed on table "${tableName}":`, error.message);
         return null;
       }
       
-      // Parse JSON strings back to objects
+      // Parse JSON strings back to objects & format domain entities
       const parsedData = (data || []).map((row: any) => {
         // Special mapping if fetching directly from Supabase members table
         if (tableName === 'members' && row.name && !row.fullName) {
@@ -246,11 +414,16 @@ export const supabaseService = {
             walletBalance: typeof row.total_spent === 'number' ? Math.round(row.total_spent / 10) : 2500,
             activeTabBalance: 0,
             emergencyContact,
-            preferredSports: ['tennis'],
+            preferredSports: ['box_cricket', 'badminton'],
             attendanceLog: [],
             reminderLog: [],
             notes: `Database record for member ID ${row.member_id}`,
           };
+        }
+
+        // Special mapping if fetching directly from Supabase bookings table
+        if (tableName === 'bookings' && (row.booking_code || row.customer_name || row.booking_date || row.court_id)) {
+          return formatBookingForClient(row);
         }
 
         const item = { ...row };
